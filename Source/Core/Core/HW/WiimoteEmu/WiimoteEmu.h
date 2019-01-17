@@ -147,8 +147,15 @@ private:
 
   void UpdateButtonsStatus();
 
+  // Returns simulated accelerometer data in m/s^2.
   Common::Vec3 GetAcceleration();
-  // Used for simulating camera data. Does not include orientation transformations.
+
+  // Returns simulated gyroscope data in radians/s.
+  Common::Vec3 GetAngularVelocity();
+
+  // Returns the transformation of the world around the wiimote.
+  // Used for simulating camera data and for rotating acceleration data.
+  // Does not include orientation transformations.
   Common::Matrix44 GetTransformation() const;
 
   void HIDOutputReport(const void* data, u32 size);
@@ -248,7 +255,7 @@ private:
   ControllerEmu::BooleanSetting* m_sideways_setting;
   ControllerEmu::BooleanSetting* m_upright_setting;
   ControllerEmu::NumericSetting* m_battery_setting;
-  // ControllerEmu::BooleanSetting* m_motion_plus_setting;
+  ControllerEmu::BooleanSetting* m_motion_plus_setting;
   ControllerEmu::ModifySettingsButton* m_hotkeys;
 
   SpeakerLogic m_speaker_logic;
@@ -280,6 +287,7 @@ private:
   // Dynamics:
   MotionState m_swing_state;
   RotationalState m_tilt_state;
+  MotionState m_cursor_state;
 
   // TODO: kill these:
   std::array<u8, 3> m_shake_step{};
