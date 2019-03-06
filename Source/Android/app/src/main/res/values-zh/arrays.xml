@@ -59,8 +59,8 @@
     </integer-array>
 
     <string-array name="sensorBarPositionEntries" translatable="false">
-        <item>Bottom</item>
-        <item>Top</item>
+        <item>底部</item>
+        <item>顶部</item>
     </string-array>
     <integer-array name="sensorBarPositionValues" translatable="false">
         <item>0</item>
@@ -88,8 +88,8 @@
     <!-- Slot A Device Selection -->
     <string-array name="slotDeviceEntries" translatable="false">
         <item>无</item>
-        <item>虚拟</item>
-        <item>记忆卡</item>
+        <item>虚设</item>
+        <item>存储卡</item>
         <item>GCI文件夹</item>
     </string-array>
     <integer-array name="slotDeviceValues" translatable="false">
@@ -97,6 +97,18 @@
         <item>0</item>
         <item>1</item>
         <item>8</item>
+    </integer-array>
+
+    <!-- SerialPort1 Device Selection -->
+    <string-array name="serialDeviceEntries" translatable="false">
+        <item>无</item>
+        <item>虚设</item>
+        <item>上网卡 (TAP)</item>
+    </string-array>
+    <integer-array name="serialDeviceValues" translatable="false">
+        <item>255</item>
+        <item>0</item>
+        <item>5</item>
     </integer-array>
 
     <!-- Video backend selection -->
@@ -154,15 +166,17 @@
     <!-- Internal Resolution Preference -->
     <string-array name="internalResolutionEntries" translatable="false">
         <item>1x (640x528)</item>
+        <item>1.5x (960x792) BUG</item>
         <item>2x (1280x1056) 720p</item>
         <item>3x (1920x1584) 1080p</item>
         <item>4x (2560x2112) 2k</item>
     </string-array>
     <integer-array name="internalResolutionValues" translatable="false">
-        <item>1</item>
-        <item>2</item>
-        <item>3</item>
-        <item>4</item>
+        <item>100</item>
+        <item>150</item>
+        <item>200</item>
+        <item>300</item>
+        <item>400</item>
     </integer-array>
 
     <!-- FSAA Preference -->
@@ -348,4 +362,5 @@
         <item>左摇杆</item>
         <item>右摇杆</item>
     </string-array>
+
 </resources>

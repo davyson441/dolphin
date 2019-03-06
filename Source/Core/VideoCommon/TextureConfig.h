@@ -50,7 +50,7 @@ struct TextureConfig
   MathUtil::Rectangle<int> GetMipRect(u32 level) const;
   size_t GetStride() const;
   size_t GetMipStride(u32 level) const;
-  bool IsMultisampled() const;
+  bool IsMultisampled() const { return samples > 1; }
 
   u32 width = 0;
   u32 height = 0;

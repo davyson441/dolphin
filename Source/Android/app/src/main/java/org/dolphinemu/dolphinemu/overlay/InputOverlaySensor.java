@@ -19,7 +19,7 @@ public class InputOverlaySensor
 
   public void setAxisIDs()
   {
-    if(EmulationActivity.isGameCubeGame())
+    if(EmulationActivity.get().isGameCubeGame())
     {
       switch (InputOverlay.sSensorGCSetting)
       {
@@ -63,7 +63,7 @@ public class InputOverlaySensor
           mFactors[1] = 1;
           mFactors[2] = 1;
           mFactors[3] = 1;
-          if(InputOverlay.sControllerType == InputOverlay.COCONTROLLER_CLASSIC)
+          if(InputOverlay.sControllerType == InputOverlay.CONTROLLER_CLASSIC)
           {
             mAxisIDs[0] = NativeLibrary.ButtonType.CLASSIC_STICK_LEFT_UP;
             mAxisIDs[1] = NativeLibrary.ButtonType.CLASSIC_STICK_LEFT_DOWN;
@@ -197,7 +197,7 @@ public class InputOverlaySensor
     axises[2] = x; // left
     axises[3] = x; // right
 
-    if(!EmulationActivity.isGameCubeGame() &&
+    if(!EmulationActivity.get().isGameCubeGame() &&
       (InputOverlay.SENSOR_WII_SHAKE == InputOverlay.sSensorWiiSetting ||
         InputOverlay.SENSOR_NUNCHUK_SHAKE == InputOverlay.sSensorWiiSetting))
     {

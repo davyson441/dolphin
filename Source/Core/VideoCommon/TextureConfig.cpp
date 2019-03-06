@@ -38,8 +38,3 @@ size_t TextureConfig::GetMipStride(u32 level) const
 {
   return AbstractTexture::CalculateStrideForFormat(format, std::max(width >> level, 1u));
 }
-
-bool TextureConfig::IsMultisampled() const
-{
-  return samples > 1;
-}

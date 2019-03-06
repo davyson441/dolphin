@@ -255,6 +255,7 @@ public final class SettingsFragmentPresenter
     Setting overrideGCLanguage = coreSection.getSetting(SettingsFile.KEY_OVERRIDE_GAME_CUBE_LANGUAGE);
     Setting slotADevice = coreSection.getSetting(SettingsFile.KEY_SLOT_A_DEVICE);
     Setting slotBDevice = coreSection.getSetting(SettingsFile.KEY_SLOT_B_DEVICE);
+    Setting serialDevice = coreSection.getSetting(SettingsFile.KEY_SERIAL_PORT_1);
 
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_GAME_CUBE_LANGUAGE, Settings.SECTION_INI_CORE,
       R.string.gamecube_system_language, 0, R.array.gameCubeSystemLanguageEntries,
@@ -268,6 +269,9 @@ public final class SettingsFragmentPresenter
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_SLOT_B_DEVICE, Settings.SECTION_INI_CORE,
       R.string.slot_b_device, 0, R.array.slotDeviceEntries, R.array.slotDeviceValues, 255,
       slotBDevice));
+    sl.add(new SingleChoiceSetting(SettingsFile.KEY_SERIAL_PORT_1, Settings.SECTION_INI_CORE,
+      R.string.serial_port_1, 0, R.array.serialDeviceEntries, R.array.serialDeviceValues, 255,
+      serialDevice));
   }
 
   private void addWiiSettings(ArrayList<SettingsItem> sl)
@@ -275,12 +279,15 @@ public final class SettingsFragmentPresenter
     SettingSection coreSection = mSettings.getSection(Settings.SECTION_INI_CORE);
     Setting continuousScan = coreSection.getSetting(SettingsFile.KEY_WIIMOTE_SCAN);
     Setting wiimoteSpeaker = coreSection.getSetting(SettingsFile.KEY_WIIMOTE_SPEAKER);
+    Setting wiiSDCard = coreSection.getSetting(SettingsFile.KEY_WII_SD_CARD);
 
     sl.add(new CheckBoxSetting(SettingsFile.KEY_WIIMOTE_SCAN, Settings.SECTION_INI_CORE,
       R.string.wiimote_scanning, R.string.wiimote_scanning_description, true,
       continuousScan));
     sl.add(new CheckBoxSetting(SettingsFile.KEY_WIIMOTE_SPEAKER, Settings.SECTION_INI_CORE,
       R.string.wiimote_speaker, R.string.wiimote_speaker_description, true, wiimoteSpeaker));
+    sl.add(new CheckBoxSetting(SettingsFile.KEY_WII_SD_CARD, Settings.SECTION_INI_CORE,
+      R.string.wii_sd_card, R.string.wii_sd_card_description, false, wiiSDCard));
 
     if(TextUtils.isEmpty(mGameID))
     {
@@ -389,7 +396,7 @@ public final class SettingsFragmentPresenter
       waitForShaders));
     sl.add(new CheckBoxSetting(SettingsFile.KEY_BACKEND_MULTITHREADING,
       Settings.SECTION_GFX_SETTINGS,
-      R.string.backend_multithreading, R.string.backend_multithreading_description, false,
+      R.string.backend_multithreading, R.string.backend_multithreading_description, true,
       backendMultithreading));
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_ASPECT_RATIO, Settings.SECTION_GFX_SETTINGS,
       R.string.aspect_ratio, 0, R.array.aspectRatioEntries,
@@ -420,7 +427,7 @@ public final class SettingsFragmentPresenter
 
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_INTERNAL_RES, Settings.SECTION_GFX_SETTINGS,
       R.string.internal_resolution, R.string.internal_resolution_description,
-      R.array.internalResolutionEntries, R.array.internalResolutionValues, 1, resolution));
+      R.array.internalResolutionEntries, R.array.internalResolutionValues, 100, resolution));
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_FSAA, Settings.SECTION_GFX_SETTINGS,
       R.string.FSAA, R.string.FSAA_description, R.array.FSAAEntries, R.array.FSAAValues, 1,
       fsaa));
@@ -494,12 +501,13 @@ public final class SettingsFragmentPresenter
   private String[] getShadersValues()
   {
     List<String> values = new ArrayList<>();
+    values.add("");
+
     String shadersPath = DirectoryInitialization.getDolphinInternalDirectory() + "/Shaders";
     File file = new File(shadersPath);
     File[] shaderFiles = file.listFiles();
     if (shaderFiles != null)
     {
-      values.add("");
       for (int i = 0; i < shaderFiles.length; ++i)
       {
         String name = shaderFiles[i].getName();
@@ -510,6 +518,23 @@ public final class SettingsFragmentPresenter
         }
       }
     }
+
+    shadersPath = DirectoryInitialization.getDolphinDirectory() + "/Shaders";
+    file = new File(shadersPath);
+    shaderFiles = file.listFiles();
+    if (shaderFiles != null)
+    {
+      for (int i = 0; i < shaderFiles.length; ++i)
+      {
+        String name = shaderFiles[i].getName();
+        int extensionIndex = name.indexOf(".glsl");
+        if (extensionIndex > 0)
+        {
+          values.add(name.substring(0, extensionIndex));
+        }
+      }
+    }
+
     return values.toArray(new String[0]);
   }
 
@@ -529,6 +554,7 @@ public final class SettingsFragmentPresenter
     Setting fastDepth = gfxSection.getSetting(SettingsFile.KEY_FAST_DEPTH);
 
     sl.add(new HeaderSetting(null, null, R.string.embedded_frame_buffer, 0));
+
     sl.add(new CheckBoxSetting(SettingsFile.KEY_SKIP_EFB, Settings.SECTION_GFX_HACKS,
       R.string.skip_efb_access, R.string.skip_efb_access_description, false, skipEFB));
     sl.add(new CheckBoxSetting(SettingsFile.KEY_IGNORE_FORMAT, Settings.SECTION_GFX_HACKS,

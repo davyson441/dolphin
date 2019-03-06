@@ -55,8 +55,6 @@ struct EfbPokeData
   u32 data;
 };
 
-extern int frameCount;
-
 // Renderer really isn't a very good name for this class - it's more like "Misc".
 // The long term goal is to get rid of this class and replace it with others that make
 // more sense.
@@ -140,7 +138,8 @@ public:
   std::tuple<float, float> ScaleToDisplayAspectRatio(int width, int height) const;
   void UpdateDrawRectangle();
 
-  unsigned int GetEFBScale() const;
+  bool IsScaledEFB() const;
+  float GetEFBScale() const;
 
   // Use this to upscale native EFB coordinates to IDEAL internal resolution
   int EFBToScaledX(int x) const;
@@ -243,19 +242,12 @@ protected:
   Common::Flag m_surface_resized;
   std::mutex m_swap_mutex;
 
-  // ImGui resources.
-  std::unique_ptr<NativeVertexFormat> m_imgui_vertex_format;
-  std::vector<std::unique_ptr<AbstractTexture>> m_imgui_textures;
-  std::unique_ptr<AbstractPipeline> m_imgui_pipeline;
-  std::mutex m_imgui_mutex;
-  u64 m_imgui_last_frame_time;
-
 private:
   void RunFrameDumps();
   std::tuple<int, int> CalculateOutputDimensions(int width, int height);
 
   PEControl::PixelFormat m_prev_efb_format = PEControl::INVALID_FMT;
-  unsigned int m_efb_scale = 1;
+  int m_efb_scale = 1;
 
   // These will be set on the first call to SetWindowSize.
   int m_last_window_request_width = 0;

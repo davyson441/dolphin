@@ -256,7 +256,7 @@ void TextureConverter::EncodeTextureToMemory(
   // TODO: This only produces perfect downsampling for 2x IR, other resolutions will need more
   //       complex down filtering to average all pixels and produce the correct result.
   bool linear_filter =
-      (scale_by_half && !params.depth) || g_renderer->GetEFBScale() != 1 || y_scale > 1.0f;
+      (scale_by_half && !params.depth) || g_renderer->IsScaledEFB() || y_scale > 1.0f;
   draw.SetPSSampler(0, src_texture,
                     linear_filter ? g_object_cache->GetLinearSampler() :
                                     g_object_cache->GetPointSampler());

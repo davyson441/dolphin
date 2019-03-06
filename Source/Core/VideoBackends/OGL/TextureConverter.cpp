@@ -118,7 +118,7 @@ static void EncodeToRamUsingShader(GLuint srcTexture, AbstractStagingTexture* de
   // TODO: This only produces perfect downsampling for 2x IR, other resolutions will need more
   //       complex down filtering to average all pixels and produce the correct result.
   // Also, box filtering won't be correct for anything other than 1x IR
-  if (linearFilter || g_renderer->GetEFBScale() != 1 || y_scale > 1.0f)
+  if (linearFilter || g_renderer->IsScaledEFB() || y_scale > 1.0f)
     g_sampler_cache->BindLinearSampler(9);
   else
     g_sampler_cache->BindNearestSampler(9);

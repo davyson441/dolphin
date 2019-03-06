@@ -31,6 +31,7 @@ public final class InputOverlayDrawableJoystick
   private int mPreviousTouchX, mPreviousTouchY;
   private int mWidth;
   private int mHeight;
+  private int mAlpha;
   private Rect mVirtBounds;
   private Rect mOrigBounds;
   private BitmapDrawable mOuterBitmap;
@@ -93,7 +94,7 @@ public final class InputOverlayDrawableJoystick
   {
     boolean reCenter = InputOverlay.sJoystickRelative;
     mOuterBitmap.setAlpha(0);
-    mBoundsBoxBitmap.setAlpha(255);
+    mBoundsBoxBitmap.setAlpha(mAlpha);
     if (reCenter)
     {
       getVirtBounds().offset((int)x - getVirtBounds().centerX(), (int)y - getVirtBounds().centerY());
@@ -111,7 +112,7 @@ public final class InputOverlayDrawableJoystick
 
   public void onPointerUp(int id, float x, float y)
   {
-    mOuterBitmap.setAlpha(255);
+    mOuterBitmap.setAlpha(mAlpha);
     mBoundsBoxBitmap.setAlpha(0);
     setVirtBounds(new Rect(mOrigBounds.left, mOrigBounds.top, mOrigBounds.right, mOrigBounds.bottom));
     setBounds(new Rect(mOrigBounds.left, mOrigBounds.top, mOrigBounds.right, mOrigBounds.bottom));
@@ -195,7 +196,7 @@ public final class InputOverlayDrawableJoystick
         break;
       case InputOverlay.JOYSTICK_EMULATE_WII_SHAKE:
         mJoystickType = 0;
-        mAxisIDs[0] = 0;
+        mAxisIDs[0] = NativeLibrary.ButtonType.WIIMOTE_SHAKE_X;
         mAxisIDs[1] = NativeLibrary.ButtonType.WIIMOTE_SHAKE_X;
         mAxisIDs[2] = NativeLibrary.ButtonType.WIIMOTE_SHAKE_Y;
         mAxisIDs[3] = NativeLibrary.ButtonType.WIIMOTE_SHAKE_Z;
@@ -228,7 +229,7 @@ public final class InputOverlayDrawableJoystick
         break;
       case InputOverlay.JOYSTICK_EMULATE_NUNCHUK_SHAKE:
         mJoystickType = 0;
-        mAxisIDs[0] = 0;
+        mAxisIDs[0] = NativeLibrary.ButtonType.NUNCHUK_SHAKE_X;
         mAxisIDs[1] = NativeLibrary.ButtonType.NUNCHUK_SHAKE_X;
         mAxisIDs[2] = NativeLibrary.ButtonType.NUNCHUK_SHAKE_Y;
         mAxisIDs[3] = NativeLibrary.ButtonType.NUNCHUK_SHAKE_Z;
@@ -272,7 +273,7 @@ public final class InputOverlayDrawableJoystick
       InputOverlay.sJoyStickSetting == InputOverlay.JOYSTICK_EMULATE_NUNCHUK_SHAKE)
     {
       // shake
-      axises[0] = 0;
+      axises[0] = -axises[1];
       axises[1] = -axises[1];
       axises[3] = -axises[3];
       handleShakeEvent(axises);
@@ -381,6 +382,13 @@ public final class InputOverlayDrawableJoystick
   public void setBounds(Rect bounds)
   {
     mOuterBitmap.setBounds(bounds);
+  }
+
+  public void setAlpha(int value)
+  {
+    mAlpha = value;
+    mDefaultStateInnerBitmap.setAlpha(value);
+    mOuterBitmap.setAlpha(value);
   }
 
   public Rect getBounds()

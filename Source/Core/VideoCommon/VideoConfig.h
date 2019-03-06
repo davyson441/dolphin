@@ -106,7 +106,6 @@ struct VideoConfig final
   bool bEFBAccessEnable;
   bool bPerfQueriesEnable;
   bool bBBoxEnable;
-  bool bBBoxPreferStencilImplementation;  // OpenGL-only, to see how slow it is compared to SSBOs
   bool bForceProgressive;
 
   bool bAlphaPassShadowHack; // Vulkan-only and need alpha pass
@@ -177,7 +176,6 @@ struct VideoConfig final
     bool bSupportsOversizedViewports;
     bool bSupportsGeometryShaders;
     bool bSupportsComputeShaders;
-    bool bSupports3DVision;
     bool bSupportsEarlyZ;         // needed by PixelShaderGen, so must stay in VideoCommon
     bool bSupportsBindingLayout;  // Needed by ShaderGen, so must stay in VideoCommon
     bool bSupportsBBox;
@@ -206,12 +204,6 @@ struct VideoConfig final
   bool ExclusiveFullscreenEnabled() const
   {
     return backend_info.bSupportsExclusiveFullscreen && !bBorderlessFullscreen;
-  }
-  bool BBoxUseFragmentShaderImplementation() const
-  {
-    if (backend_info.api_type == APIType::OpenGL && bBBoxPreferStencilImplementation)
-      return false;
-    return backend_info.bSupportsBBox && backend_info.bSupportsFragmentStoresAndAtomics;
   }
   bool UseGPUTextureDecoding() const
   {

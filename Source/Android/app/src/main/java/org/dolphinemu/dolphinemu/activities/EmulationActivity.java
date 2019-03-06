@@ -2,7 +2,6 @@ package org.dolphinemu.dolphinemu.activities;
 
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.hardware.Sensor;
@@ -32,8 +31,6 @@ import org.dolphinemu.dolphinemu.fragments.EmulationFragment;
 import org.dolphinemu.dolphinemu.model.GameFile;
 import org.dolphinemu.dolphinemu.overlay.InputOverlay;
 import org.dolphinemu.dolphinemu.services.GameFileCacheService;
-import org.dolphinemu.dolphinemu.overlay.InputOverlay;
-import org.dolphinemu.dolphinemu.overlay.InputOverlayPointer;
 import org.dolphinemu.dolphinemu.ui.main.MainActivity;
 import org.dolphinemu.dolphinemu.ui.main.MainPresenter;
 import org.dolphinemu.dolphinemu.ui.platform.Platform;
@@ -44,10 +41,13 @@ import org.dolphinemu.dolphinemu.utils.Java_WiimoteAdapter;
 import org.dolphinemu.dolphinemu.utils.Rumble;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.List;
 
 public final class EmulationActivity extends AppCompatActivity
 {
+  private static WeakReference<EmulationActivity> sActivity = new WeakReference<>(null);
+
   public static final int REQUEST_CHANGE_DISC = 1;
 
   private SensorManager mSensorManager;
@@ -60,9 +60,6 @@ public final class EmulationActivity extends AppCompatActivity
   private boolean mStopEmulation;
   private boolean mMenuVisible;
 
-  private static boolean sIsGameCubeGame;
-
-  private boolean activityRecreated;
   private String mSelectedTitle;
   private String mSelectedGameId;
   private int mPlatform;
@@ -91,10 +88,16 @@ public final class EmulationActivity extends AppCompatActivity
     activity.startActivityForResult(launcher, MainPresenter.REQUEST_EMULATE_GAME);
   }
 
+  public static EmulationActivity get()
+  {
+    return sActivity.get();
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState)
   {
     super.onCreate(savedInstanceState);
+    sActivity = new WeakReference<>(this);
 
     if (savedInstanceState == null)
     {
@@ -105,17 +108,12 @@ public final class EmulationActivity extends AppCompatActivity
       mSelectedGameId = gameToEmulate.getStringExtra(EXTRA_SELECTED_GAMEID);
       mPlatform = gameToEmulate.getIntExtra(EXTRA_PLATFORM, 0);
       mSavedState = gameToEmulate.getStringExtra(EXTRA_SAVED_STATE);
-      activityRecreated = false;
     }
     else
     {
-      activityRecreated = true;
       restoreState(savedInstanceState);
     }
 
-    // TODO: The accurate way to find out which console we're emulating is to
-    // first launch emulation and then ask the core which console we're emulating
-    sIsGameCubeGame = Platform.fromNativeInt(mPlatform) == Platform.GAMECUBE;
     mControllerMappingHelper = new ControllerMappingHelper();
 
     // Get a handle to the Window containing the UI.
@@ -155,7 +153,15 @@ public final class EmulationActivity extends AppCompatActivity
     setTitle(mSelectedTitle);
 
     mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-    Rumble.setPhoneRumble(this, mPreferences.getBoolean(RUMBLE_PREF_KEY, true));
+    loadPreferences();
+  }
+
+  @Override
+  protected void onDestroy()
+  {
+    super.onDestroy();
+    sActivity.clear();
+    savePreferences();
   }
 
   @Override
@@ -163,7 +169,8 @@ public final class EmulationActivity extends AppCompatActivity
   {
     if (!isChangingConfigurations())
     {
-      saveTemporaryState();
+      mSavedState = getFilesDir() + File.separator + "temp.sav";
+      NativeLibrary.SaveStateAs(mSavedState, true);
     }
     outState.putStringArray(EXTRA_SELECTED_GAMES, mPaths);
     outState.putString(EXTRA_SELECTED_TITLE, mSelectedTitle);
@@ -245,7 +252,7 @@ public final class EmulationActivity extends AppCompatActivity
   public boolean onCreateOptionsMenu(Menu menu)
   {
     // Inflate the menu; this adds items to the action bar if it is present.
-    if (sIsGameCubeGame)
+    if (isGameCubeGame())
     {
       getMenuInflater().inflate(R.menu.menu_emulation, menu);
     }
@@ -352,7 +359,7 @@ public final class EmulationActivity extends AppCompatActivity
     AlertDialog.Builder builder = new AlertDialog.Builder(this);
     builder.setTitle(R.string.emulation_sensor_settings);
 
-    if(sIsGameCubeGame)
+    if(isGameCubeGame())
     {
       int sensor = InputOverlay.sSensorGCSetting;
       builder.setSingleChoiceItems(R.array.gcSensorSettings, sensor,
@@ -442,16 +449,54 @@ public final class EmulationActivity extends AppCompatActivity
   {
     super.onPause();
 
-    final SharedPreferences.Editor editor = mPreferences.edit();
-    editor.putInt(InputOverlay.JOYSTICK_PREF_KEY, InputOverlay.sJoyStickSetting);
-    editor.putInt(InputOverlay.CONTROL_TYPE_PREF_KEY, InputOverlay.sControllerType);
-    editor.putInt(InputOverlay.CONTROL_SCALE_PREF_KEY, InputOverlay.sControllerScale);
-    editor.apply();
-
     if(mSensorManager != null)
     {
       mSensorManager.unregisterListener(mEmulationFragment);
     }
+  }
+
+  private void loadPreferences()
+  {
+    String id = mSelectedGameId.length() > 3 ? mSelectedGameId.substring(0, 3) : mSelectedGameId;
+    String scaleKey = InputOverlay.CONTROL_SCALE_PREF_KEY + "_" + id;
+    String alphaKey = InputOverlay.CONTROL_ALPHA_PREF_KEY + "_" + id;
+    String typeKey = InputOverlay.CONTROL_TYPE_PREF_KEY + "_" + id;
+    String joystickKey = InputOverlay.JOYSTICK_PREF_KEY + "_" + id;
+    String recenterKey = InputOverlay.RECENTER_PREF_KEY + "_" + id;
+
+    InputOverlay.sControllerScale = mPreferences.getInt(scaleKey, 50);
+    InputOverlay.sControllerAlpha = mPreferences.getInt(alphaKey, 100);
+    InputOverlay.sControllerType = mPreferences.getInt(typeKey, InputOverlay.CONTROLLER_WIINUNCHUK);
+    InputOverlay.sJoyStickSetting = mPreferences.getInt(joystickKey, InputOverlay.JOYSTICK_EMULATE_NONE);
+    InputOverlay.sJoystickRelative = mPreferences.getBoolean(InputOverlay.RELATIVE_PREF_KEY, true);
+    InputOverlay.sIRRecenter = mPreferences.getBoolean(recenterKey, false);
+
+    if(isGameCubeGame())
+      InputOverlay.sJoyStickSetting = InputOverlay.JOYSTICK_EMULATE_NONE;
+
+    InputOverlay.sSensorGCSetting = InputOverlay.SENSOR_GC_NONE;
+    InputOverlay.sSensorWiiSetting = InputOverlay.SENSOR_WII_NONE;
+
+    Rumble.setPhoneRumble(this, mPreferences.getBoolean(RUMBLE_PREF_KEY, true));
+  }
+
+  private void savePreferences()
+  {
+    String id = mSelectedGameId.length() > 3 ? mSelectedGameId.substring(0, 3) : mSelectedGameId;
+    String scaleKey = InputOverlay.CONTROL_SCALE_PREF_KEY + "_" + id;
+    String alphaKey = InputOverlay.CONTROL_ALPHA_PREF_KEY + "_" + id;
+    String typeKey = InputOverlay.CONTROL_TYPE_PREF_KEY + "_" + id;
+    String joystickKey = InputOverlay.JOYSTICK_PREF_KEY + "_" + id;
+    String recenterKey = InputOverlay.RECENTER_PREF_KEY + "_" + id;
+
+    SharedPreferences.Editor editor = mPreferences.edit();
+    editor.putInt(typeKey, InputOverlay.sControllerType);
+    editor.putInt(scaleKey, InputOverlay.sControllerScale);
+    editor.putInt(alphaKey, InputOverlay.sControllerAlpha);
+    editor.putInt(joystickKey, InputOverlay.sJoyStickSetting);
+    editor.putBoolean(InputOverlay.RELATIVE_PREF_KEY, InputOverlay.sJoystickRelative);
+    editor.putBoolean(recenterKey, InputOverlay.sIRRecenter);
+    editor.apply();
   }
 
   // Gets button presses
@@ -493,53 +538,45 @@ public final class EmulationActivity extends AppCompatActivity
   private void toggleControls()
   {
     final SharedPreferences.Editor editor = mPreferences.edit();
+    final int controller = InputOverlay.sControllerType;
     boolean[] enabledButtons = new boolean[16];
-    int controller = InputOverlay.sControllerType;
     AlertDialog.Builder builder = new AlertDialog.Builder(this);
     builder.setTitle(R.string.emulation_toggle_controls);
 
-    if (sIsGameCubeGame || controller == InputOverlay.CONTROLLER_GAMECUBE)
+    int resId;
+    String keyPrefix;
+    if (isGameCubeGame() || controller == InputOverlay.CONTROLLER_GAMECUBE)
     {
-      for (int i = 0; i < enabledButtons.length; i++)
-      {
-        enabledButtons[i] = mPreferences.getBoolean("buttonToggleGc" + i, true);
-      }
-      builder.setMultiChoiceItems(R.array.gcpadButtons, enabledButtons,
-        (dialog, indexSelected, isChecked) -> editor
-          .putBoolean("buttonToggleGc" + indexSelected, isChecked));
+      resId = R.array.gcpadButtons;
+      keyPrefix = "buttonToggleGc";
     }
-    else if (controller == InputOverlay.COCONTROLLER_CLASSIC)
+    else if (controller == InputOverlay.CONTROLLER_CLASSIC)
     {
-      for (int i = 0; i < enabledButtons.length; i++)
-      {
-        enabledButtons[i] = mPreferences.getBoolean("buttonToggleClassic" + i, true);
-      }
-      builder.setMultiChoiceItems(R.array.classicButtons, enabledButtons,
-        (dialog, indexSelected, isChecked) -> editor
-          .putBoolean("buttonToggleClassic" + indexSelected, isChecked));
+      resId = R.array.classicButtons;
+      keyPrefix = "buttonToggleClassic";
     }
     else
     {
-      for (int i = 0; i < enabledButtons.length; i++)
-      {
-        enabledButtons[i] = mPreferences.getBoolean("buttonToggleWii" + i, true);
-      }
-      if (controller == InputOverlay.CONTROLLER_WIINUNCHUK)
-      {
-        builder.setMultiChoiceItems(R.array.nunchukButtons, enabledButtons,
-          (dialog, indexSelected, isChecked) -> editor
-            .putBoolean("buttonToggleWii" + indexSelected, isChecked));
-      }
-      else
-      {
-        builder.setMultiChoiceItems(R.array.wiimoteButtons, enabledButtons,
-          (dialog, indexSelected, isChecked) -> editor
-            .putBoolean("buttonToggleWii" + indexSelected, isChecked));
-      }
+      resId = controller == InputOverlay.CONTROLLER_WIINUNCHUK ?
+        R.array.nunchukButtons : R.array.wiimoteButtons;
+      keyPrefix = "buttonToggleWii";
     }
 
-    builder.setNeutralButton(getString(R.string.emulation_toggle_all),
-      (dialogInterface, i) -> mEmulationFragment.toggleInputOverlayVisibility());
+    for (int i = 0; i < enabledButtons.length; i++)
+    {
+      enabledButtons[i] = mPreferences.getBoolean(keyPrefix + i, true);
+    }
+    builder.setMultiChoiceItems(resId, enabledButtons,
+      (dialog, indexSelected, isChecked) -> editor
+        .putBoolean(keyPrefix + indexSelected, isChecked));
+
+    builder.setNeutralButton(getString(R.string.emulation_toggle_all), (dialogInterface, i) ->
+    {
+      editor.putBoolean("showInputOverlay",
+        !mPreferences.getBoolean("showInputOverlay", true));
+      editor.apply();
+      mEmulationFragment.refreshInputOverlay();
+    });
     builder.setPositiveButton(getString(R.string.ok), (dialogInterface, i) ->
     {
       editor.apply();
@@ -553,15 +590,15 @@ public final class EmulationActivity extends AppCompatActivity
   private void adjustScale()
   {
     LayoutInflater inflater = LayoutInflater.from(this);
-    View view = inflater.inflate(R.layout.dialog_seekbar, null);
+    View view = inflater.inflate(R.layout.dialog_input_adjust, null);
 
-    final SeekBar seekbar = view.findViewById(R.id.seekbar);
-    final TextView value = view.findViewById(R.id.text_value);
-    final TextView units = view.findViewById(R.id.text_units);
+    // scale
+    final SeekBar seekbarScale = view.findViewById(R.id.input_scale_seekbar);
+    final TextView valueScale = view.findViewById(R.id.input_scale_value);
 
-    seekbar.setMax(150);
-    seekbar.setProgress(InputOverlay.sControllerScale);
-    seekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
+    seekbarScale.setMax(150);
+    seekbarScale.setProgress(InputOverlay.sControllerScale);
+    seekbarScale.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
     {
       public void onStartTrackingTouch(SeekBar seekBar)
       {
@@ -570,7 +607,7 @@ public final class EmulationActivity extends AppCompatActivity
 
       public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser)
       {
-        value.setText(String.valueOf(progress + 50));
+        valueScale.setText((progress + 50) + "%");
       }
 
       public void onStopTrackingTouch(SeekBar seekBar)
@@ -578,18 +615,45 @@ public final class EmulationActivity extends AppCompatActivity
         // Do nothing
       }
     });
+    valueScale.setText((seekbarScale.getProgress() + 50) + "%");
 
-    value.setText(String.valueOf(seekbar.getProgress() + 50));
-    units.setText("%");
+    // alpha
+    final SeekBar seekbarAlpha = view.findViewById(R.id.input_alpha_seekbar);
+    final TextView valueAlpha = view.findViewById(R.id.input_alpha_value);
+    seekbarAlpha.setMax(100);
+    seekbarAlpha.setProgress(InputOverlay.sControllerAlpha);
+    seekbarAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
+    {
+      public void onStartTrackingTouch(SeekBar seekBar)
+      {
+        // Do nothing
+      }
+
+      public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser)
+      {
+        valueAlpha.setText(progress + "%");
+      }
+
+      public void onStopTrackingTouch(SeekBar seekBar)
+      {
+        // Do nothing
+      }
+    });
+    valueAlpha.setText(seekbarAlpha.getProgress() + "%");
 
     AlertDialog.Builder builder = new AlertDialog.Builder(this);
-    builder.setTitle(R.string.emulation_control_scale);
     builder.setView(view);
-    builder.setPositiveButton(getString(R.string.ok), (dialogInterface, i) ->
+    builder.setOnDismissListener((dialogInterface) ->
     {
-      InputOverlay.sControllerScale = seekbar.getProgress();
+      InputOverlay.sControllerScale = seekbarScale.getProgress();
+      InputOverlay.sControllerAlpha = seekbarAlpha.getProgress();
       mEmulationFragment.refreshInputOverlay();
     });
+    builder.setNeutralButton(getString(R.string.emulation_control_reset_layout),
+      (dialogInterface, i) ->
+      {
+        mEmulationFragment.resetCurrentLayout();
+      });
 
     AlertDialog alertDialog = builder.create();
     alertDialog.show();
@@ -656,14 +720,9 @@ public final class EmulationActivity extends AppCompatActivity
     return true;
   }
 
-  public static boolean isGameCubeGame()
+  public boolean isGameCubeGame()
   {
-    return sIsGameCubeGame;
-  }
-
-  public boolean isActivityRecreated()
-  {
-    return activityRecreated;
+    return Platform.fromNativeInt(mPlatform) == Platform.GAMECUBE;
   }
 
   public String getSavedState()
@@ -671,15 +730,9 @@ public final class EmulationActivity extends AppCompatActivity
     return mSavedState;
   }
 
-  public void saveTemporaryState()
+  public void setTouchPointer(int type)
   {
-    mSavedState = getFilesDir() + File.separator + "temp.sav";
-    NativeLibrary.SaveStateAs(mSavedState, true);
-  }
-
-  public void setTouchPointerEnabled(boolean enabled)
-  {
-    mEmulationFragment.setTouchPointerEnabled(enabled);
+    mEmulationFragment.setTouchPointer(type);
   }
 
   public void updateTouchPointer()

@@ -215,7 +215,7 @@ template <class T>
 inline void GenerateVSOutputMembers(T& object, APIType api_type, u32 texgens,
                                     const ShaderHostConfig& host_config, const char* qualifier)
 {
-  DefineOutputMember(object, api_type, qualifier, "float4", "pos", -1, "POSITION");
+  DefineOutputMember(object, api_type, qualifier, "float4", "pos", -1, "SV_Position");
   DefineOutputMember(object, api_type, qualifier, "float4", "colors_", 0, "COLOR", 0);
   DefineOutputMember(object, api_type, qualifier, "float4", "colors_", 1, "COLOR", 1);
 

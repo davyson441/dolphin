@@ -790,7 +790,7 @@ bool Renderer::Initialize()
 
   // Initialize the FramebufferManager
   g_framebuffer_manager = std::make_unique<FramebufferManager>(
-      m_target_width, m_target_height, s_MSAASamples, BoundingBox::NeedsStencilBuffer());
+      m_target_width, m_target_height, s_MSAASamples, false);
   m_current_framebuffer_width = m_target_width;
   m_current_framebuffer_height = m_target_height;
 
@@ -1361,8 +1361,7 @@ void Renderer::OnConfigChanged(u32 bits)
 
     g_framebuffer_manager.reset();
     g_framebuffer_manager = std::make_unique<FramebufferManager>(
-        m_target_width, m_target_height, s_MSAASamples, BoundingBox::NeedsStencilBuffer());
-    BoundingBox::SetTargetSizeChanged(m_target_width, m_target_height);
+        m_target_width, m_target_height, s_MSAASamples, false);
   }
 
   if (bits & CONFIG_CHANGE_BIT_VSYNC && !DriverDetails::HasBug(DriverDetails::BUG_BROKEN_VSYNC))

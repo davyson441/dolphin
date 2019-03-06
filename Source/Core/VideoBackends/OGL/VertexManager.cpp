@@ -128,19 +128,7 @@ void VertexManager::UploadConstants()
 
 void VertexManager::DrawCurrentBatch(u32 base_index, u32 num_indices, u32 base_vertex)
 {
-  if (::BoundingBox::active && !g_Config.BBoxUseFragmentShaderImplementation())
-  {
-    glEnable(GL_STENCIL_TEST);
-  }
-
   g_renderer->DrawIndexed(base_index, num_indices, base_vertex);
-
-  if (::BoundingBox::active && !g_Config.BBoxUseFragmentShaderImplementation())
-  {
-    OGL::BoundingBox::StencilWasUpdated();
-    glDisable(GL_STENCIL_TEST);
-  }
-
   g_Config.iSaveTargetId++;
   ClearEFBCache();
 }

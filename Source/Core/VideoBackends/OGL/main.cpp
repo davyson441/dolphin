@@ -82,7 +82,6 @@ void VideoBackend::InitBackendInfo()
   g_Config.backend_info.bSupportsOversizedViewports = true;
   g_Config.backend_info.bSupportsGeometryShaders = true;
   g_Config.backend_info.bSupportsComputeShaders = false;
-  g_Config.backend_info.bSupports3DVision = false;
   g_Config.backend_info.bSupportsPostProcessing = true;
   g_Config.backend_info.bSupportsSSAA = true;
   g_Config.backend_info.bSupportsReversedDepthRange = true;
@@ -180,7 +179,7 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
   if (!g_renderer->Initialize())
     return false;
   TextureConverter::Init();
-  BoundingBox::Init(g_renderer->GetTargetWidth(), g_renderer->GetTargetHeight());
+  BoundingBox::Init();
   return g_shader_cache->Initialize();
 }
 

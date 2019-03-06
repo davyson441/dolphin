@@ -128,13 +128,16 @@
     <string name="gamecube_submenu">GameCube</string>
     <string name="gamecube_system_language">系统语言</string>
     <string name="override_gamecube_language">覆盖NTSC游戏语言</string>
-    <string name="slot_a_device">GameCube A槽设备</string>
-    <string name="slot_b_device">GameCube B槽设备</string>
+    <string name="slot_a_device">插槽 A 设备</string>
+    <string name="slot_b_device">插槽 B 设备</string>
+    <string name="serial_port_1">串口 1 设备</string>
     <string name="wii_submenu">Wii</string>
     <string name="wiimote_scanning">Wii连续扫描</string>
     <string name="wiimote_scanning_description">如果使用DolphinBar来获得真正的Wiimote支持，请取消此选项。</string>
     <string name="wiimote_speaker">Wii扬声器</string>
     <string name="wiimote_speaker_description">通过真实Wiimote的扬声器启用声音输出（需要DolphinBar）。</string>
+    <string name="wii_sd_card">插入 SD 卡</string>
+    <string name="wii_sd_card_description">保存在 /Wii/sd.raw (默认大小是 128mb)。</string>
     <string name="audio_stretch">音频拉伸</string>
     <string name="audio_stretch_description">拉伸音频以减少声音不流畅的问题，增加延迟。</string>
 
@@ -292,6 +295,8 @@
     <string name="emulation_toggle_controls">按钮显示</string>
     <string name="emulation_toggle_all">切换全部</string>
     <string name="emulation_control_scale">调整比例</string>
+    <string name="emulation_control_alpha">调整透明度</string>
+    <string name="emulation_control_reset_layout">重置布局</string>
     <string name="emulation_control_joystick_rel_center">摇杆点击居中</string>
     <string name="emulation_control_rumble">振动反馈</string>
     <string name="emulation_choose_controller">选择手柄</string>
@@ -346,6 +351,9 @@
     <string name="touch_screen_pointer_recenter">IR光标总是回到中心点</string>
     <string name="joystick_relative_center">摇杆使用相对位置</string>
     <string name="use_builtin_title_database">使用游戏名称数据库</string>
+    <string name="touch_ir_click">点击</string>
+    <string name="touch_ir_stick">摇杆</string>
+    <string name="delete_cache_toast">删除 %1$d 个缓存文件。</string>
 
     <string name="sysconf_screensaver">屏幕保护程序</string>
     <string name="sysconf_language">系统语言</string>
