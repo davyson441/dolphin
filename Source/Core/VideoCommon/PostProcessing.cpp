@@ -132,7 +132,7 @@ void PostProcessingShaderConfiguration::LoadOptions(const std::string& code)
       }
 #endif
 
-      if (line.size() > 0)
+      if (!line.empty())
       {
         if (line[0] == '[')
         {
@@ -153,7 +153,7 @@ void PostProcessingShaderConfiguration::LoadOptions(const std::string& code)
             std::string key, value;
             IniFile::ParseLine(line, &key, &value);
 
-            if (!(key == "" && value == ""))
+            if (!(key.empty() && value.empty()))
               current_strings->m_options.emplace_back(key, value);
           }
         }
@@ -254,7 +254,7 @@ void PostProcessingShaderConfiguration::LoadOptionsConfiguration()
     {
       std::string value;
       ini.GetOrCreateSection(section)->Get(it.second.m_option_name, &value);
-      if (value != "")
+      if (!value.empty())
         TryParseVector(value, &it.second.m_integer_values);
     }
     break;
@@ -262,7 +262,7 @@ void PostProcessingShaderConfiguration::LoadOptionsConfiguration()
     {
       std::string value;
       ini.GetOrCreateSection(section)->Get(it.second.m_option_name, &value);
-      if (value != "")
+      if (!value.empty())
         TryParseVector(value, &it.second.m_float_values);
     }
     break;

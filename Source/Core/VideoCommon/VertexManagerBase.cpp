@@ -118,7 +118,7 @@ DataReader VertexManagerBase::PrepareForAdditionalData(int primitive, u32 count,
   // need to alloc new buffer
   if (m_is_flushed)
   {
-    g_vertex_manager->ResetBuffer(stride, cullall);
+    ResetBuffer(stride, cullall);
     m_is_flushed = false;
   }
 
@@ -394,8 +394,6 @@ void VertexManagerBase::Flush()
         g_perf_query->DisableQuery(bpmem.zcontrol.early_ztest ? PQG_ZCOMP_ZCOMPLOC : PQG_ZCOMP);
     }
   }
-
-  GFX_DEBUGGER_PAUSE_AT(NEXT_FLUSH, true);
 
   if (xfmem.numTexGen.numTexGens != bpmem.genMode.numtexgens)
     ERROR_LOG(VIDEO,

@@ -212,36 +212,11 @@ bool RasterFont::CreateTexture()
                                     0,
                                     nullptr};
   VkBuffer temp_buffer;
-  VkResult res = vkCreateBuffer(g_vulkan_context->GetDevice(), &buffer_info, nullptr, &temp_buffer);
-  if (res != VK_SUCCESS)
-  {
-    LOG_VULKAN_ERROR(res, "vkCreateBuffer failed: ");
-    return false;
-  }
-
-  VkMemoryRequirements memory_requirements;
-  vkGetBufferMemoryRequirements(g_vulkan_context->GetDevice(), temp_buffer, &memory_requirements);
-  uint32_t memory_type_index = g_vulkan_context->GetMemoryType(memory_requirements.memoryTypeBits,
-                                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-  VkMemoryAllocateInfo memory_allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr,
-                                               memory_requirements.size, memory_type_index};
   VkDeviceMemory temp_buffer_memory;
-  res = vkAllocateMemory(g_vulkan_context->GetDevice(), &memory_allocate_info, nullptr,
-                         &temp_buffer_memory);
+  VkResult res = g_vulkan_context->Allocate(&buffer_info, &temp_buffer, &temp_buffer_memory);
   if (res != VK_SUCCESS)
   {
-    LOG_VULKAN_ERROR(res, "vkAllocateMemory failed: ");
-    vkDestroyBuffer(g_vulkan_context->GetDevice(), temp_buffer, nullptr);
-    return false;
-  }
-
-  // Bind buffer to memory
-  res = vkBindBufferMemory(g_vulkan_context->GetDevice(), temp_buffer, temp_buffer_memory, 0);
-  if (res != VK_SUCCESS)
-  {
-    LOG_VULKAN_ERROR(res, "vkBindBufferMemory failed: ");
-    vkDestroyBuffer(g_vulkan_context->GetDevice(), temp_buffer, nullptr);
-    vkFreeMemory(g_vulkan_context->GetDevice(), temp_buffer_memory, nullptr);
+    LOG_VULKAN_ERROR(res, "Allocate buffer failed: ");
     return false;
   }
 

@@ -341,7 +341,6 @@ void CommandBufferManager::SubmitCommandBuffer(size_t index, SwapChain * swap_ch
   if (swap_chain)
   {
     // Should have a signal semaphore.
-    ASSERT(signal_semaphore != VK_NULL_HANDLE);
     VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                                      nullptr,
                                      1,
