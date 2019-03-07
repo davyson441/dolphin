@@ -204,16 +204,9 @@ void OpenGLPostProcessing::ApplyShader()
       // don't set current
       // Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, "");
     }
-
-    main_code = m_config.LoadVertexShader(g_ActiveConfig.sPostProcessingShader);
-    if(!main_code.empty())
-    {
-      vertex_code = s_vertex_header + main_code;
-    }
   }
 
-  if(vertex_code.empty())
-    vertex_code = s_default_vertex_shader;
+  vertex_code = s_default_vertex_shader;
   if(fragment_code.empty())
     fragment_code = s_default_fragment_shader;
 

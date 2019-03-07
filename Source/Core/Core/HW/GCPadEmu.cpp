@@ -69,7 +69,7 @@ GCPad::GCPad(const unsigned int index) : m_index(index)
   groups.emplace_back(m_main_stick = new ControllerEmu::OctagonAnalogStick(
                           "Main Stick", _trans("Control Stick"), main_gate_radius));
 
-  constexpr auto c_gate_radius = ControlState(C_STICK_GATE_RADIUS) / GCPadStatus::MAIN_STICK_RADIUS;
+  constexpr auto c_gate_radius = ControlState(C_STICK_GATE_RADIUS) / GCPadStatus::C_STICK_RADIUS;
   groups.emplace_back(m_c_stick = new ControllerEmu::OctagonAnalogStick(
                           "C-Stick", _trans("C Stick"), c_gate_radius));
 

@@ -54,7 +54,6 @@ public:
   // Loads the configuration with a shader
   // If the argument is "" the class will load the shader from the g_activeConfig option.
   // Returns the loaded shader source from file
-  std::string LoadVertexShader(const std::string& shader);
   std::string LoadShader(const std::string& shader);
   void SaveOptionsConfiguration();
   void ReloadShader();

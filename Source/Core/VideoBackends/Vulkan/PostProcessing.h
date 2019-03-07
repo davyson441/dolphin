@@ -37,9 +37,7 @@ private:
   std::string GetGLSLUniformBlock(bool is_vertex_shader) const;
   std::string ConvertToVulkanGLSL(const std::string& code) const;
 
-  VkShaderModule m_vertex_shader = VK_NULL_HANDLE;
   VkShaderModule m_fragment_shader = VK_NULL_HANDLE;
-  bool m_load_vertex_uniforms;
   bool m_load_fragment_uniforms;
 };
 

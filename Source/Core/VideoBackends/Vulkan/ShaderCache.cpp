@@ -24,6 +24,7 @@
 #include "VideoBackends/Vulkan/VertexFormat.h"
 #include "VideoBackends/Vulkan/VulkanContext.h"
 #include "VideoCommon/Statistics.h"
+#include "VideoCommon/OnScreenDisplay.h"
 
 namespace Vulkan
 {
@@ -186,22 +187,28 @@ GetVulkanColorBlendState(const BlendingState& state,
                          const VkPipelineColorBlendAttachmentState* attachments,
                          uint32_t num_attachments)
 {
-  static constexpr std::array<VkLogicOp, 16> vk_logic_ops = {
-      {VK_LOGIC_OP_CLEAR, VK_LOGIC_OP_AND, VK_LOGIC_OP_AND_REVERSE, VK_LOGIC_OP_COPY,
-       VK_LOGIC_OP_AND_INVERTED, VK_LOGIC_OP_NO_OP, VK_LOGIC_OP_XOR, VK_LOGIC_OP_OR,
-       VK_LOGIC_OP_NOR, VK_LOGIC_OP_EQUIVALENT, VK_LOGIC_OP_INVERT, VK_LOGIC_OP_OR_REVERSE,
-       VK_LOGIC_OP_COPY_INVERTED, VK_LOGIC_OP_OR_INVERTED, VK_LOGIC_OP_NAND, VK_LOGIC_OP_SET}};
-
   VkBool32 vk_logic_op_enable = static_cast<VkBool32>(state.logicopenable);
-  if (vk_logic_op_enable && !g_vulkan_context->SupportsLogicOps())
+  VkLogicOp vk_logic_op = VK_LOGIC_OP_CLEAR;
+  if (vk_logic_op_enable)
   {
-    // At the time of writing, Adreno and Mali drivers didn't support logic ops.
-    // The "emulation" through blending path has been removed, so just disable it completely.
-    // These drivers don't support dual-source blend either, so issues are to be expected.
-    vk_logic_op_enable = VK_FALSE;
+    if(g_vulkan_context->SupportsLogicOps())
+    {
+      static constexpr std::array<VkLogicOp, 16> vk_logic_ops = {
+          {VK_LOGIC_OP_CLEAR, VK_LOGIC_OP_AND, VK_LOGIC_OP_AND_REVERSE, VK_LOGIC_OP_COPY,
+           VK_LOGIC_OP_AND_INVERTED, VK_LOGIC_OP_NO_OP, VK_LOGIC_OP_XOR, VK_LOGIC_OP_OR,
+           VK_LOGIC_OP_NOR, VK_LOGIC_OP_EQUIVALENT, VK_LOGIC_OP_INVERT, VK_LOGIC_OP_OR_REVERSE,
+           VK_LOGIC_OP_COPY_INVERTED, VK_LOGIC_OP_OR_INVERTED, VK_LOGIC_OP_NAND, VK_LOGIC_OP_SET}};
+      vk_logic_op = vk_logic_ops[state.logicmode];
+    }
+    else
+    {
+      // At the time of writing, Adreno and Mali drivers didn't support logic ops.
+      // The "emulation" through blending path has been removed, so just disable it completely.
+      // These drivers don't support dual-source blend either, so issues are to be expected.
+      OSD::AddTypedMessage(OSD::MessageType::LogicOpsNotice, "Logic ops aren't available!", 4000);
+      vk_logic_op_enable = VK_FALSE;
+    }
   }
-
-  VkLogicOp vk_logic_op = vk_logic_op_enable ? vk_logic_ops[state.logicmode] : VK_LOGIC_OP_CLEAR;
 
   VkPipelineColorBlendStateCreateInfo vk_state = {
       VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,  // VkStructureType sType

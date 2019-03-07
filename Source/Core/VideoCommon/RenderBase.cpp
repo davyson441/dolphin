@@ -414,8 +414,8 @@ void Renderer::UpdateDrawRectangle()
   draw_width = std::ceil(draw_width) - static_cast<int>(std::ceil(draw_width)) % 4;
   draw_height = std::ceil(draw_height) - static_cast<int>(std::ceil(draw_height)) % 4;
 
-  m_target_rectangle.left = static_cast<int>(std::round(win_width / 2.0 - draw_width / 2.0));
-  m_target_rectangle.top = static_cast<int>(std::round(win_height / 2.0 - draw_height / 2.0));
+  m_target_rectangle.left = static_cast<int>(win_width - draw_width) / 2;
+  m_target_rectangle.top = static_cast<int>(win_height - draw_height) / 2;
   m_target_rectangle.right = m_target_rectangle.left + static_cast<int>(draw_width);
   m_target_rectangle.bottom = m_target_rectangle.top + static_cast<int>(draw_height);
 }
@@ -597,7 +597,6 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbStride, u32 fbHeight, const 
         DumpCurrentFrame();
 
       frameCount++;
-      GFX_DEBUGGER_PAUSE_AT(NEXT_FRAME, true);
 
       // Begin new frame
       stats.ResetFrame();

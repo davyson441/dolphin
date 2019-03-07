@@ -57,30 +57,6 @@ PostProcessingShaderConfiguration::PostProcessingShaderConfiguration() = default
 
 PostProcessingShaderConfiguration::~PostProcessingShaderConfiguration() = default;
 
-std::string PostProcessingShaderConfiguration::LoadVertexShader(const std::string& shader)
-{
-  std::string code;
-  if (shader.empty())
-  {
-    return code;
-  }
-
-  std::string path = File::GetUserPath(D_SHADERS_IDX) + shader + ".vglsl";
-  if (!File::Exists(path))
-  {
-    // Fallback to shared user dir
-    path = File::GetSysDirectory() + SHADERS_DIR DIR_SEP + shader + ".vglsl";
-  }
-
-  if (!File::ReadFileToString(path, code))
-  {
-    ERROR_LOG(VIDEO, "Post-processing shader not found: %s", path.c_str());
-    code.clear();
-  }
-
-  return code;
-}
-
 std::string PostProcessingShaderConfiguration::LoadShader(const std::string& shader)
 {
   // loading shader code

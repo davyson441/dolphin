@@ -433,15 +433,6 @@ bool VulkanContext::SelectDeviceFeatures()
   if (!available_features.occlusionQueryPrecise)
     WARN_LOG(VIDEO, "Vulkan: Missing precise occlusion queries. Perf queries will be inaccurate.");
 
-  // Check push constant size.
-  if (properties.limits.maxPushConstantsSize < static_cast<u32>(PUSH_CONSTANT_BUFFER_SIZE))
-  {
-    PanicAlert("Vulkan: Push contant buffer size %u is below minimum %u.",
-               properties.limits.maxPushConstantsSize, static_cast<u32>(PUSH_CONSTANT_BUFFER_SIZE));
-
-    return false;
-  }
-
   // Enable the features we use.
   m_device_features.dualSrcBlend = available_features.dualSrcBlend;
   m_device_features.geometryShader = available_features.geometryShader;

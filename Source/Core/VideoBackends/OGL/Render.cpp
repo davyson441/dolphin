@@ -433,9 +433,9 @@ Renderer::Renderer(std::unique_ptr<GLContext> main_gl_context, float backbuffer_
   g_Config.backend_info.bSupportsDualSourceBlend =
       (GLExtensions::Supports("GL_ARB_blend_func_extended") ||
        GLExtensions::Supports("GL_EXT_blend_func_extended"));
-  g_Config.backend_info.bSupportsBBox = true;
   g_Config.backend_info.bSupportsFragmentStoresAndAtomics =
       GLExtensions::Supports("GL_ARB_shader_storage_buffer_object");
+  g_Config.backend_info.bSupportsBBox = g_Config.backend_info.bSupportsFragmentStoresAndAtomics;
   g_Config.backend_info.bSupportsGSInstancing = GLExtensions::Supports("GL_ARB_gpu_shader5");
   g_Config.backend_info.bSupportsSSAA = GLExtensions::Supports("GL_ARB_gpu_shader5") &&
                                         GLExtensions::Supports("GL_ARB_sample_shading");
@@ -681,9 +681,13 @@ Renderer::Renderer(std::unique_ptr<GLContext> main_gl_context, float backbuffer_
       glDebugMessageCallbackARB(ErrorCallback, nullptr);
     }
     if (LogManager::GetInstance()->IsEnabled(LogTypes::HOST_GPU, LogTypes::LERROR))
+    {
       glEnable(GL_DEBUG_OUTPUT);
+    }
     else
+    {
       glDisable(GL_DEBUG_OUTPUT);
+    }
   }
 
   int samples;
@@ -740,14 +744,6 @@ Renderer::Renderer(std::unique_ptr<GLContext> main_gl_context, float backbuffer_
   // Handle VSync on/off
   if (!DriverDetails::HasBug(DriverDetails::BUG_BROKEN_VSYNC))
     m_main_gl_context->SwapInterval(g_ActiveConfig.bVSyncActive);
-
-  // Because of the fixed framebuffer size we need to disable the resolution
-  // options while running
-
-  // The stencil is used for bounding box emulation when SSBOs are not available
-  glDisable(GL_STENCIL_TEST);
-  glStencilFunc(GL_ALWAYS, 1, 0xFF);
-  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
   // Reset The Current Viewport
   glViewport(0, 0, GetTargetWidth(), GetTargetHeight());
@@ -1243,11 +1239,20 @@ void Renderer::ApplyBlendingState(const BlendingState state, bool force)
   if (!force && m_current_blend_state == state)
     return;
 
-  bool useDualSource = g_ActiveConfig.backend_info.bSupportsDualSourceBlend &&
-                       !DriverDetails::HasBug(DriverDetails::BUG_BROKEN_DUAL_SOURCE_BLENDING);
+  bool useDualSource = false;
   // Only use shader blend if we need to and we don't support dual-source blending directly
-  bool useShaderBlend = state.IsDualSourceBlend() && !useDualSource &&
-                        g_ActiveConfig.backend_info.bSupportsFramebufferFetch;
+  bool useShaderBlend = false;
+  if (state.IsDualSourceBlend())
+  {
+    if (g_ActiveConfig.backend_info.bSupportsDualSourceBlend)
+    {
+      useDualSource = true;
+    }
+    else if (g_ActiveConfig.backend_info.bSupportsFramebufferFetch)
+    {
+      useShaderBlend = true;
+    }
+  }
 
   if (useShaderBlend)
   {
@@ -1294,17 +1299,16 @@ void Renderer::ApplyBlendingState(const BlendingState state, bool force)
                         src_factors[state.srcfactoralpha], dst_factors[state.dstfactoralpha]);
   }
 
-  const GLenum logic_op_codes[16] = {
-      GL_CLEAR,         GL_AND,         GL_AND_REVERSE, GL_COPY,  GL_AND_INVERTED, GL_NOOP,
-      GL_XOR,           GL_OR,          GL_NOR,         GL_EQUIV, GL_INVERT,       GL_OR_REVERSE,
-      GL_COPY_INVERTED, GL_OR_INVERTED, GL_NAND,        GL_SET};
-
   if (IsGLES())
   {
     // Logic ops aren't available in GLES3
   }
   else if (state.logicopenable)
   {
+    const GLenum logic_op_codes[16] = {
+        GL_CLEAR,         GL_AND,         GL_AND_REVERSE, GL_COPY,  GL_AND_INVERTED, GL_NOOP,
+        GL_XOR,           GL_OR,          GL_NOR,         GL_EQUIV, GL_INVERT,       GL_OR_REVERSE,
+        GL_COPY_INVERTED, GL_OR_INVERTED, GL_NAND,        GL_SET};
     glEnable(GL_COLOR_LOGIC_OP);
     glLogicOp(logic_op_codes[state.logicmode]);
   }
