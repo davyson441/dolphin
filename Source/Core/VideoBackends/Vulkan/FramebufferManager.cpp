@@ -163,9 +163,6 @@ bool FramebufferManager::CreateEFBFramebuffer()
       static_cast<VkSampleCountFlagBits>(g_ActiveConfig.iMultisamples);
   INFO_LOG(VIDEO, "EFB size: %ux%ux%u", efb_width, efb_height, efb_layers);
 
-  // Update the static variable in the base class. Why does this even exist?
-  FramebufferManagerBase::m_EFBLayers = efb_layers;
-
   // Allocate EFB render targets
   m_efb_color_texture =
       Texture2D::Create(efb_width, efb_height, 1, efb_layers, EFB_COLOR_TEXTURE_FORMAT, efb_samples,

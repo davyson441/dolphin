@@ -205,17 +205,17 @@ GLuint FramebufferManager::CreateTexture(GLenum texture_type, GLenum internal_fo
   if (texture_type == GL_TEXTURE_2D_ARRAY)
   {
     glTexParameteri(texture_type, GL_TEXTURE_MAX_LEVEL, 0);
-    glTexImage3D(texture_type, 0, internal_format, m_targetWidth, m_targetHeight, m_EFBLayers, 0,
+    glTexImage3D(texture_type, 0, internal_format, m_targetWidth, m_targetHeight, GetEFBLayers(), 0,
                  pixel_format, data_type, nullptr);
   }
   else if (texture_type == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
   {
     if (g_ogl_config.bSupports3DTextureStorageMultisample)
       glTexStorage3DMultisample(texture_type, m_msaaSamples, internal_format, m_targetWidth,
-                                m_targetHeight, m_EFBLayers, false);
+                                m_targetHeight, GetEFBLayers(), false);
     else
       glTexImage3DMultisample(texture_type, m_msaaSamples, internal_format, m_targetWidth,
-                              m_targetHeight, m_EFBLayers, false);
+                              m_targetHeight, GetEFBLayers(), false);
   }
   else if (texture_type == GL_TEXTURE_2D_MULTISAMPLE)
   {
@@ -240,7 +240,7 @@ void FramebufferManager::BindLayeredTexture(GLuint texture, const std::vector<GL
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[0]);
   FramebufferTexture(GL_FRAMEBUFFER, attachment, texture_type, texture, 0);
   // Bind all the other layers as separate FBOs for blitting.
-  for (unsigned int i = 1; i < m_EFBLayers; i++)
+  for (unsigned int i = 1; i < GetEFBLayers(); i++)
   {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
     glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, texture, 0, i);
@@ -279,9 +279,8 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
 
   glActiveTexture(GL_TEXTURE9);
 
-  m_EFBLayers = 1;
-  m_efbFramebuffer.resize(m_EFBLayers);
-  m_resolvedFramebuffer.resize(m_EFBLayers);
+  m_efbFramebuffer.resize(GetEFBLayers());
+  m_resolvedFramebuffer.resize(GetEFBLayers());
 
   GLenum depth_internal_format = GL_DEPTH_COMPONENT32F;
   GLenum depth_pixel_format = GL_DEPTH_COMPONENT;
@@ -316,7 +315,7 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
         CreateTexture(resolvedType, depth_internal_format, depth_pixel_format, depth_data_type);
 
     // Bind resolved textures to resolved framebuffer.
-    glGenFramebuffers(m_EFBLayers, m_resolvedFramebuffer.data());
+    glGenFramebuffers(GetEFBLayers(), m_resolvedFramebuffer.data());
     BindLayeredTexture(m_resolvedColorTexture, m_resolvedFramebuffer, GL_COLOR_ATTACHMENT0,
                        resolvedType);
     BindLayeredTexture(m_resolvedDepthTexture, m_resolvedFramebuffer, GL_DEPTH_ATTACHMENT,
@@ -332,7 +331,7 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
   m_efbColorSwap = CreateTexture(m_textureType, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
 
   // Bind target textures to EFB framebuffer.
-  glGenFramebuffers(m_EFBLayers, m_efbFramebuffer.data());
+  glGenFramebuffers(GetEFBLayers(), m_efbFramebuffer.data());
   BindLayeredTexture(m_efbColor, m_efbFramebuffer, GL_COLOR_ATTACHMENT0, m_textureType);
   BindLayeredTexture(m_efbDepth, m_efbFramebuffer, GL_DEPTH_ATTACHMENT, m_textureType);
   if (m_enable_stencil_buffer)
@@ -380,7 +379,7 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
 
   std::string ps_rgb8_to_rgba6 = sampler + GLSL_RGB8_TO_RGBA6_FS;
 
-  std::string gs = StringFromFormat(GLSL_GS, m_EFBLayers * 3, m_EFBLayers);
+  std::string gs = StringFromFormat(GLSL_GS, GetEFBLayers() * 3, GetEFBLayers());
 
   ProgramShaderCache::CompileShader(m_pixel_format_shaders[0], vs, ps_rgb8_to_rgba6,
                                     multilayer ? gs : "");
@@ -395,7 +394,7 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
       StringFromFormat(GLSL_EFB_POKE_PIXEL_FS, prefix, prefix, prefix, prefix),
 
       multilayer ?
-          StringFromFormat(GLSL_EFB_POKE_GEOMETRY_GS, m_EFBLayers, m_EFBLayers, m_targetWidth) :
+          StringFromFormat(GLSL_EFB_POKE_GEOMETRY_GS, GetEFBLayers(), GetEFBLayers(), m_targetWidth) :
           "");
   glGenBuffers(1, &m_EfbPokes_VBO);
   glGenVertexArrays(1, &m_EfbPokes_VAO);
@@ -425,8 +424,8 @@ FramebufferManager::~FramebufferManager()
 
   // Note: OpenGL deletion functions silently ignore parameters of "0".
 
-  glDeleteFramebuffers(m_EFBLayers, m_efbFramebuffer.data());
-  glDeleteFramebuffers(m_EFBLayers, m_resolvedFramebuffer.data());
+  glDeleteFramebuffers(GetEFBLayers(), m_efbFramebuffer.data());
+  glDeleteFramebuffers(GetEFBLayers(), m_resolvedFramebuffer.data());
 
   // Required, as these are static class members
   m_efbFramebuffer.clear();
@@ -473,7 +472,7 @@ GLuint FramebufferManager::GetEFBColorTexture(const EFBRectangle& sourceRc)
     targetRc.ClampUL(0, 0, m_targetWidth, m_targetHeight);
 
     // Resolve.
-    for (unsigned int i = 0; i < m_EFBLayers; i++)
+    for (unsigned int i = 0; i < GetEFBLayers(); i++)
     {
       glBindFramebuffer(GL_READ_FRAMEBUFFER, m_efbFramebuffer[i]);
       glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_resolvedFramebuffer[i]);
@@ -503,7 +502,7 @@ GLuint FramebufferManager::GetEFBDepthTexture(const EFBRectangle& sourceRc)
     targetRc.ClampUL(0, 0, m_targetWidth, m_targetHeight);
 
     // Resolve.
-    for (unsigned int i = 0; i < m_EFBLayers; i++)
+    for (unsigned int i = 0; i < GetEFBLayers(); i++)
     {
       glBindFramebuffer(GL_READ_FRAMEBUFFER, m_efbFramebuffer[i]);
       glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_resolvedFramebuffer[i]);
@@ -525,7 +524,7 @@ void FramebufferManager::ResolveEFBStencilTexture()
     return;
 
   // Resolve.
-  for (unsigned int i = 0; i < m_EFBLayers; i++)
+  for (unsigned int i = 0; i < GetEFBLayers(); i++)
   {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_efbFramebuffer[i]);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_resolvedFramebuffer[i]);
@@ -554,7 +553,7 @@ void FramebufferManager::FramebufferTexture(GLenum target, GLenum attachment, GL
 {
   if (textarget == GL_TEXTURE_2D_ARRAY || textarget == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
   {
-    if (m_EFBLayers > 1)
+    if (GetEFBLayers() > 1)
       glFramebufferTexture(target, attachment, texture, level);
     else
       glFramebufferTextureLayer(target, attachment, texture, level, 0);

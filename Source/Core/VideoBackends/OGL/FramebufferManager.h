@@ -63,7 +63,7 @@ public:
 
   static GLuint GetEFBFramebuffer(unsigned int layer = 0)
   {
-    return (layer < m_EFBLayers) ? m_efbFramebuffer[layer] : m_efbFramebuffer.back();
+    return (layer < GetEFBLayers()) ? m_efbFramebuffer[layer] : m_efbFramebuffer.back();
   }
   // Resolved framebuffer is only used in MSAA mode.
   static GLuint GetResolvedFramebuffer();

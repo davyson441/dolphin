@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <Windows.h>
+#include <string>
 
 namespace UI
 {
@@ -21,4 +21,6 @@ void SetTotalProgress(int current, int total);
 void SetCurrentMarquee(bool marquee);
 void ResetCurrentProgress();
 void SetCurrentProgress(int current, int total);
+
+void SetVisible(bool visible);
 }  // namespace UI

@@ -1034,11 +1034,12 @@ void MenuBar::CheckNAND()
   {
     std::string title_listings;
     Core::TitleDatabase title_db;
+    const DiscIO::Language language = SConfig::GetInstance().GetCurrentLanguage(true);
     for (const u64 title_id : result.titles_to_remove)
     {
       title_listings += StringFromFormat("%016" PRIx64, title_id);
 
-      const std::string database_name = title_db.GetChannelName(title_id);
+      const std::string database_name = title_db.GetChannelName(title_id, language);
       if (!database_name.empty())
       {
         title_listings += " - " + database_name;

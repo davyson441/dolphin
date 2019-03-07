@@ -66,9 +66,6 @@
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/XFMemory.h"
 
-// TODO: Move these out of here.
-int frameCount;
-
 std::unique_ptr<Renderer> g_renderer;
 
 static float AspectToWidescreen(float aspect)
@@ -596,9 +593,8 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbStride, u32 fbHeight, const 
       if (IsFrameDumping())
         DumpCurrentFrame();
 
-      frameCount++;
-
       // Begin new frame
+      m_frame_count++;
       stats.ResetFrame();
       g_shader_cache->RetrieveAsyncShaders();
 
@@ -613,7 +609,7 @@ void Renderer::Swap(u32 xfbAddr, u32 fbWidth, u32 fbStride, u32 fbHeight, const 
       g_texture_cache->FlushEFBCopies();
 
       // Remove stale EFB/XFB copies.
-      g_texture_cache->Cleanup(frameCount);
+      g_texture_cache->Cleanup(m_frame_count);
 
       // Handle any config changes, this gets propogated to the backend.
       if (g_ActiveConfig.bDirty)

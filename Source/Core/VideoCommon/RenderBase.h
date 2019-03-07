@@ -225,8 +225,8 @@ protected:
   bool m_aspect_wide = false;
 
   // The framebuffer size
-  int m_target_width = 0;
-  int m_target_height = 0;
+  int m_target_width = 1;
+  int m_target_height = 1;
 
   // Backbuffer (window) size and render area
   int m_backbuffer_width = 0;
@@ -234,6 +234,7 @@ protected:
   float m_backbuffer_scale = 1.0f;
   AbstractTextureFormat m_backbuffer_format = AbstractTextureFormat::Undefined;
   TargetRectangle m_target_rectangle = {};
+  int m_frame_count = 0;
 
   std::unique_ptr<PostProcessingShaderImplementation> m_post_processor;
 
