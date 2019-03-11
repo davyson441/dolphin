@@ -4,6 +4,7 @@
                 android:layout_height="wrap_content">
 
     <Button
+        android:id="@+id/button_delete"
         android:background="@drawable/close_icon"
         android:layout_width="26dp"
         android:layout_height="26dp"/>
