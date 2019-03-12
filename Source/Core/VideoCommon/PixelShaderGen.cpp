@@ -174,13 +174,6 @@ PixelShaderUid GetPixelShaderUid()
       bpmem.zcontrol.pixel_format == PEControl::RGBA6_Z24 && !g_ActiveConfig.bForceTrueColor;
   uid_data->dither = bpmem.blendmode.dither && uid_data->rgba6_format;
 
-  // OpenGL and Vulkan convert implicitly normalized color outputs to their uint representation.
-  // Therefore, it is not necessary to use a uint output on these backends. We also disable the
-  // uint output when logic op is not supported (i.e. driver/device does not support D3D11.1).
-  if (g_ActiveConfig.backend_info.api_type == APIType::D3D &&
-      g_ActiveConfig.backend_info.bSupportsLogicOp)
-    uid_data->uint_output = bpmem.blendmode.UseLogicOp();
-
   u32 numStages = uid_data->genMode_numtevstages + 1;
 
   if (g_ActiveConfig.bEnablePixelLighting)
@@ -364,17 +357,6 @@ PixelShaderUid GetPixelShaderUid()
       uid_data->logic_mode = 0;
       uid_data->dualSrcBlend = true;
     }
-    else if (g_ActiveConfig.backend_info.bSupportsFramebufferFetch)
-    {
-      // shader blend
-      uid_data->blend_enable = state.blendenable;
-      uid_data->blend_src_factor = state.srcfactor;
-      uid_data->blend_src_factor_alpha = state.srcfactoralpha;
-      uid_data->blend_dst_factor = state.dstfactor;
-      uid_data->blend_dst_factor_alpha = state.dstfactoralpha;
-      uid_data->blend_subtract = state.subtract;
-      uid_data->blend_subtract_alpha = state.subtractAlpha;
-    }
     else
     {
       // alpha pass
@@ -390,22 +372,8 @@ void ClearUnusedPixelShaderUidBits(APIType ApiType, const ShaderHostConfig& host
 {
   pixel_shader_uid_data* uid_data = uid->GetUidData<pixel_shader_uid_data>();
 
-  // OpenGL and Vulkan convert implicitly normalized color outputs to their uint representation.
-  // Therefore, it is not necessary to use a uint output on these backends. We also disable the
-  // uint output when logic op is not supported (i.e. driver/device does not support D3D11.1).
-  if (ApiType != APIType::D3D || !host_config.backend_logic_op)
-    uid_data->uint_output = 0;
-
   if (host_config.backend_dual_source_blend)
   {
-    uid_data->blend_enable = 0;
-    uid_data->blend_src_factor = 0;
-    uid_data->blend_src_factor_alpha = 0;
-    uid_data->blend_dst_factor = 0;
-    uid_data->blend_dst_factor_alpha = 0;
-    uid_data->blend_subtract = 0;
-    uid_data->blend_subtract_alpha = 0;
-
     // don't use shader logic ops before hardware blend
     if (uid_data->dualSrcBlend)
     {
@@ -426,14 +394,6 @@ void ClearUnusedPixelShaderUidBits(APIType ApiType, const ShaderHostConfig& host
 
   if (!host_config.backend_shader_framebuffer_fetch)
   {
-    uid_data->blend_enable = 0;
-    uid_data->blend_src_factor = 0;
-    uid_data->blend_src_factor_alpha = 0;
-    uid_data->blend_dst_factor = 0;
-    uid_data->blend_dst_factor_alpha = 0;
-    uid_data->blend_subtract = 0;
-    uid_data->blend_subtract_alpha = 0;
-
     if (uid_data->logic_mode == BlendMode::LogicOp::CLEAR ||
         uid_data->logic_mode == BlendMode::LogicOp::COPY_INVERTED ||
         uid_data->logic_mode == BlendMode::LogicOp::SET)
@@ -547,7 +507,6 @@ static void WriteAlphaTest(ShaderCode& out, const pixel_shader_uid_data* uid_dat
 static void WriteFog(ShaderCode& out, const pixel_shader_uid_data* uid_data);
 static void WriteColor(ShaderCode& out, APIType api_type, const pixel_shader_uid_data* uid_data,
                        bool use_dual_source);
-static void WriteBlend(ShaderCode& out, const pixel_shader_uid_data* uid_data);
 
 static void WriteZCoord(ShaderCode& out, APIType api_type, const ShaderHostConfig& host_config,
                         const pixel_shader_uid_data* uid_data);
@@ -621,145 +580,88 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
 
   // Only use dual-source blending when required on drivers that don't support it very well.
   bool use_dual_source = uid_data->dualSrcBlend;
-  bool use_shader_blend = uid_data->blend_enable;
   bool use_shader_logic = uid_data->logic_op_enable;
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
+  if (use_dual_source)
   {
-    if (use_dual_source)
-    {
-      if (DriverDetails::HasBug(DriverDetails::BUG_BROKEN_FRAGMENT_SHADER_INDEX_DECORATION))
-      {
-        out.Write("FRAGMENT_OUTPUT_LOCATION(0) out vec4 ocol0;\n");
-        out.Write("FRAGMENT_OUTPUT_LOCATION(1) out vec4 ocol1;\n");
-      }
-      else
-      {
-        out.Write("FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 0) out vec4 ocol0;\n");
-        out.Write("FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 1) out vec4 ocol1;\n");
-      }
-    }
-    else if (use_shader_blend)
-    {
-      // QComm's Adreno driver doesn't seem to like using the framebuffer_fetch value as an
-      // intermediate value with multiple reads & modifications, so pull out the "real" output value
-      // and use a temporary for calculations, then set the output value once at the end of the
-      // shader
-      out.Write("FRAGMENT_OUTPUT_LOCATION(0) FRAGMENT_INOUT vec4 real_ocol0;\n");
-    }
-    else if (use_shader_logic)
-    {
-      // use shader logic without shader blend
-      if (host_config.backend_shader_framebuffer_fetch)
-      {
-        out.Write("FRAGMENT_OUTPUT_LOCATION(0) FRAGMENT_INOUT vec4 real_ocol0;\n");
-      }
-      else
-      {
-        out.Write("FRAGMENT_OUTPUT_LOCATION(0) out vec4 real_ocol0;\n");
-      }
-    }
-    else
+    if (DriverDetails::HasBug(DriverDetails::BUG_BROKEN_FRAGMENT_SHADER_INDEX_DECORATION))
     {
       out.Write("FRAGMENT_OUTPUT_LOCATION(0) out vec4 ocol0;\n");
-    }
-
-    if (uid_data->per_pixel_depth)
-      out.Write("#define depth gl_FragDepth\n");
-
-    if (host_config.backend_geometry_shaders)
-    {
-      out.Write("VARYING_LOCATION(0) in VertexData {\n");
-      GenerateVSOutputMembers(out, ApiType, uid_data->genMode_numtexgens, host_config,
-                              GetInterpolationQualifier(msaa, ssaa, true, true));
-
-      out.Write("};\n");
+      out.Write("FRAGMENT_OUTPUT_LOCATION(1) out vec4 ocol1;\n");
     }
     else
     {
-      // Let's set up attributes
-      u32 counter = 0;
-      out.Write("VARYING_LOCATION(%u) %s in float4 colors_0;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION(%u) %s in float4 colors_1;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      for (unsigned int i = 0; i < uid_data->genMode_numtexgens; ++i)
-      {
-        out.Write("VARYING_LOCATION(%u) %s in float3 tex%d;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa), i);
-      }
-      if (!host_config.fast_depth_calc)
-        out.Write("VARYING_LOCATION(%u) %s in float4 clipPos;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-      if (per_pixel_lighting)
-      {
-        out.Write("VARYING_LOCATION(%u) %s in float3 Normal;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-        out.Write("VARYING_LOCATION(%u) %s in float3 WorldPos;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-      }
-    }
-
-    out.Write("void main()\n{\n");
-    out.Write("\tfloat4 rawpos = gl_FragCoord;\n");
-    if (use_shader_blend)
-    {
-      // Store off a copy of the initial fb value for blending
-      out.Write("\tfloat4 initial_ocol0 = FB_FETCH_VALUE;\n");
-      out.Write("\tfloat4 ocol0;\n");
-      out.Write("\tfloat4 ocol1;\n");
-    }
-    else if (use_shader_logic)
-    {
-      if (host_config.backend_shader_framebuffer_fetch)
-      {
-        out.Write("\tfloat4 initial_ocol0 = FB_FETCH_VALUE;\n");
-      }
-      else
-      {
-        out.Write("\tfloat4 initial_ocol0 = float4(0.0);\n");
-      }
-      out.Write("\tfloat4 ocol0;\n");
-      out.Write("\tfloat4 ocol1;\n");
+      out.Write("FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 0) out vec4 ocol0;\n");
+      out.Write("FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 1) out vec4 ocol1;\n");
     }
   }
-  else  // D3D
+  else if (use_shader_logic)
   {
-    out.Write("void main(\n");
-    if (uid_data->uint_output)
-      out.Write("  out uint4 ocol0 : SV_Target,\n");
-    else
-      out.Write("  out float4 ocol0 : SV_Target0,\n"
-                "  out float4 ocol1 : SV_Target1,\n");
-    out.Write("%s"
-              "  in float4 rawpos : SV_Position,\n",
-              uid_data->per_pixel_depth ? "  out float depth : SV_Depth,\n" : "");
-
-    out.Write("  in %s float4 colors_0 : COLOR0,\n", GetInterpolationQualifier(msaa, ssaa));
-    out.Write("  in %s float4 colors_1 : COLOR1\n", GetInterpolationQualifier(msaa, ssaa));
-
-    // compute window position if needed because binding semantic WPOS is not widely supported
-    for (unsigned int i = 0; i < uid_data->genMode_numtexgens; ++i)
-      out.Write(",\n  in %s float3 tex%d : TEXCOORD%d", GetInterpolationQualifier(msaa, ssaa), i,
-                i);
-    if (!host_config.fast_depth_calc)
+    // use shader logic without shader blend
+    if (host_config.backend_shader_framebuffer_fetch)
     {
-      out.Write(",\n  in %s float4 clipPos : TEXCOORD%d", GetInterpolationQualifier(msaa, ssaa),
-                uid_data->genMode_numtexgens);
+      out.Write("FRAGMENT_OUTPUT_LOCATION(0) FRAGMENT_INOUT vec4 real_ocol0;\n");
     }
+    else
+    {
+      out.Write("FRAGMENT_OUTPUT_LOCATION(0) out vec4 real_ocol0;\n");
+    }
+  }
+  else
+  {
+    out.Write("FRAGMENT_OUTPUT_LOCATION(0) out vec4 ocol0;\n");
+  }
+
+  if (uid_data->per_pixel_depth)
+    out.Write("#define depth gl_FragDepth\n");
+
+  if (host_config.backend_geometry_shaders)
+  {
+    out.Write("VARYING_LOCATION(0) in VertexData {\n");
+    GenerateVSOutputMembers(out, ApiType, uid_data->genMode_numtexgens, host_config,
+                            GetInterpolationQualifier(msaa, ssaa, true, true));
+
+    out.Write("};\n");
+  }
+  else
+  {
+    // Let's set up attributes
+    u32 counter = 0;
+    out.Write("VARYING_LOCATION(%u) %s in float4 colors_0;\n", counter++,
+              GetInterpolationQualifier(msaa, ssaa));
+    out.Write("VARYING_LOCATION(%u) %s in float4 colors_1;\n", counter++,
+              GetInterpolationQualifier(msaa, ssaa));
+    for (unsigned int i = 0; i < uid_data->genMode_numtexgens; ++i)
+    {
+      out.Write("VARYING_LOCATION(%u) %s in float3 tex%d;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa), i);
+    }
+    if (!host_config.fast_depth_calc)
+      out.Write("VARYING_LOCATION(%u) %s in float4 clipPos;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa));
     if (per_pixel_lighting)
     {
-      out.Write(",\n  in %s float3 Normal : TEXCOORD%d", GetInterpolationQualifier(msaa, ssaa),
-                uid_data->genMode_numtexgens + 1);
-      out.Write(",\n  in %s float3 WorldPos : TEXCOORD%d", GetInterpolationQualifier(msaa, ssaa),
-                uid_data->genMode_numtexgens + 2);
+      out.Write("VARYING_LOCATION(%u) %s in float3 Normal;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa));
+      out.Write("VARYING_LOCATION(%u) %s in float3 WorldPos;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa));
     }
-    if (host_config.backend_geometry_shaders)
+  }
+
+  out.Write("void main()\n{\n");
+  out.Write("\tfloat4 rawpos = gl_FragCoord;\n");
+  if (use_shader_logic)
+  {
+    if (host_config.backend_shader_framebuffer_fetch)
     {
-      out.Write(",\n  in float clipDist0 : SV_ClipDistance0\n");
-      out.Write(",\n  in float clipDist1 : SV_ClipDistance1\n");
+      out.Write("\tfloat4 initial_ocol0 = FB_FETCH_VALUE;\n");
     }
-    out.Write("        ) {\n");
+    else
+    {
+      out.Write("\tfloat4 initial_ocol0 = float4(0.0);\n");
+    }
+    out.Write("\tfloat4 ocol0;\n");
+    out.Write("\tfloat4 ocol1;\n");
   }
 
   out.Write("\tint4 c0 = " I_COLORS "[1], c1 = " I_COLORS "[2], c2 = " I_COLORS
@@ -858,8 +760,7 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
   // testing result)
   if (uid_data->Pretest == AlphaTest::UNDETERMINED ||
       (uid_data->Pretest == AlphaTest::FAIL && uid_data->late_ztest))
-    WriteAlphaTest(out, uid_data, ApiType, uid_data->per_pixel_depth,
-                   use_dual_source || use_shader_blend);
+    WriteAlphaTest(out, uid_data, ApiType, uid_data->per_pixel_depth, use_dual_source);
 
   // write zcoord
   bool need_write_zcoord = true;
@@ -936,38 +837,20 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
 
   // Write the color and alpha values to the framebuffer
   // If using shader blend, we still use the separate alpha
-  WriteColor(out, ApiType, uid_data, use_dual_source || use_shader_blend);
-
-  if (use_shader_blend)
-    WriteBlend(out, uid_data);
+  WriteColor(out, ApiType, uid_data, use_dual_source);
 
   if (use_shader_logic)
     WriteLogicOp(out, uid_data);
 
-  if (use_shader_blend || use_shader_logic)
-    out.Write("\treal_ocol0 = ocol0;\n");
-
   if (uid_data->bounding_box)
   {
-    if (ApiType == APIType::D3D)
-    {
-      out.Write(
-          "\tif(bbox_data[0] > int(rawpos.x)) InterlockedMin(bbox_data[0], int(rawpos.x));\n"
-          "\tif(bbox_data[1] < int(rawpos.x)) InterlockedMax(bbox_data[1], int(rawpos.x));\n"
-          "\tif(bbox_data[2] > int(rawpos.y)) InterlockedMin(bbox_data[2], int(rawpos.y));\n"
-          "\tif(bbox_data[3] < int(rawpos.y)) InterlockedMax(bbox_data[3], int(rawpos.y));\n");
-    }
-    else
-    {
-      out.Write("\tif(bbox_left > int(rawpos.x)) atomicMin(bbox_left, int(rawpos.x));\n"
-                "\tif(bbox_right < int(rawpos.x)) atomicMax(bbox_right, int(rawpos.x));\n"
-                "\tif(bbox_top > int(rawpos.y)) atomicMin(bbox_top, int(rawpos.y));\n"
-                "\tif(bbox_bottom < int(rawpos.y)) atomicMax(bbox_bottom, int(rawpos.y));\n");
-    }
+    out.Write("\tif(bbox_left > int(rawpos.x)) atomicMin(bbox_left, int(rawpos.x));\n"
+              "\tif(bbox_right < int(rawpos.x)) atomicMax(bbox_right, int(rawpos.x));\n"
+              "\tif(bbox_top > int(rawpos.y)) atomicMin(bbox_top, int(rawpos.y));\n"
+              "\tif(bbox_bottom < int(rawpos.y)) atomicMax(bbox_bottom, int(rawpos.y));\n");
   }
 
   out.Write("}\n");
-
   return out;
 }
 
@@ -1365,18 +1248,8 @@ static void SampleTexture(ShaderCode& out, const char* texcoords, const char* te
                           APIType ApiType)
 {
   out.SetConstantsUsed(C_TEXDIMS + texmap, C_TEXDIMS + texmap);
-
-  if (ApiType == APIType::D3D)
-  {
-    out.Write("iround(255.0 * Tex[%d].Sample(samp[%d], float3(%s.xy * " I_TEXDIMS
-              "[%d].xy, %s))).%s;\n",
-              texmap, texmap, texcoords, texmap, "0.0", texswap);
-  }
-  else
-  {
-    out.Write("iround(255.0 * texture(samp[%d], float3(%s.xy * " I_TEXDIMS "[%d].xy, %s))).%s;\n",
-              texmap, texcoords, texmap, "0.0", texswap);
-  }
+  out.Write("iround(255.0 * texture(samp[%d], float3(%s.xy * " I_TEXDIMS "[%d].xy, %s))).%s;\n",
+            texmap, texcoords, texmap, "0.0", texswap);
 }
 
 static const char* tevAlphaFuncsTable[] = {
@@ -1425,7 +1298,7 @@ static void WriteAlphaTest(ShaderCode& out, const pixel_shader_uid_data* uid_dat
     out.Write(")) {\n");
 
   out.Write("\t\tocol0 = float4(0.0, 0.0, 0.0, 0.0);\n");
-  if (use_dual_source && !(ApiType == APIType::D3D && uid_data->uint_output))
+  if (use_dual_source)
     out.Write("\t\tocol1 = float4(0.0, 0.0, 0.0, 0.0);\n");
   if (per_pixel_depth)
   {
@@ -1437,8 +1310,7 @@ static void WriteAlphaTest(ShaderCode& out, const pixel_shader_uid_data* uid_dat
   if (!uid_data->alpha_test_use_zcomploc_hack)
   {
     out.Write("\t\tdiscard;\n");
-    if (ApiType != APIType::D3D)
-      out.Write("\t\treturn;\n");
+    out.Write("\t\treturn;\n");
   }
 
   out.Write("\t}\n");
@@ -1513,16 +1385,6 @@ static void WriteFog(ShaderCode& out, const pixel_shader_uid_data* uid_data)
 static void WriteColor(ShaderCode& out, APIType api_type, const pixel_shader_uid_data* uid_data,
                        bool use_dual_source)
 {
-  // D3D requires that the shader outputs be uint when writing to a uint render target for logic op.
-  if (api_type == APIType::D3D && uid_data->uint_output)
-  {
-    if (uid_data->rgba6_format)
-      out.Write("\tocol0 = uint4(prev & 0xFC);\n");
-    else
-      out.Write("\tocol0 = uint4(prev);\n");
-    return;
-  }
-
   // Use dual-source color blending to perform dst alpha in a single pass
   if (use_dual_source)
     out.Write("\tocol1 = float4(0.0, 0.0, 0.0, float(prev.a) / 255.0);\n");
@@ -1539,88 +1401,6 @@ static void WriteColor(ShaderCode& out, APIType api_type, const pixel_shader_uid
     out.Write("\tocol0 = float4(prev >> 2) / 63.0;\n");
   else
     out.Write("\tocol0 = float4(prev) / 255.0;\n");
-}
-
-static void WriteBlend(ShaderCode& out, const pixel_shader_uid_data* uid_data)
-{
-  static const std::array<const char*, 8> blendSrcFactor{{
-      "float3(0.0);",                      // ZERO
-      "float3(1.0);",                      // ONE
-      "initial_ocol0.rgb;",                // DSTCLR
-      "float3(1.0) - initial_ocol0.rgb;",  // INVDSTCLR
-      "ocol1.aaa;",                        // SRCALPHA
-      "float3(1.0) - ocol1.aaa;",          // INVSRCALPHA
-      "initial_ocol0.aaa;",                // DSTALPHA
-      "float3(1.0) - initial_ocol0.aaa;",  // INVDSTALPHA
-  }};
-  static const std::array<const char*, 8> blendSrcFactorAlpha{{
-      "0.0;",                    // ZERO
-      "1.0;",                    // ONE
-      "initial_ocol0.a;",        // DSTCLR
-      "1.0 - initial_ocol0.a;",  // INVDSTCLR
-      "ocol1.a;",                // SRCALPHA
-      "1.0 - ocol1.a;",          // INVSRCALPHA
-      "initial_ocol0.a;",        // DSTALPHA
-      "1.0 - initial_ocol0.a;",  // INVDSTALPHA
-  }};
-  static const std::array<const char*, 8> blendDstFactor{{
-      "float3(0.0);",                      // ZERO
-      "float3(1.0);",                      // ONE
-      "ocol0.rgb;",                        // SRCCLR
-      "float3(1.0) - ocol0.rgb;",          // INVSRCCLR
-      "ocol1.aaa;",                        // SRCALHA
-      "float3(1.0) - ocol1.aaa;",          // INVSRCALPHA
-      "initial_ocol0.aaa;",                // DSTALPHA
-      "float3(1.0) - initial_ocol0.aaa;",  // INVDSTALPHA
-  }};
-  static const std::array<const char*, 8> blendDstFactorAlpha{{
-      "0.0;",                    // ZERO
-      "1.0;",                    // ONE
-      "ocol0.a;",                // SRCCLR
-      "1.0 - ocol0.a;",          // INVSRCCLR
-      "ocol1.a;",                // SRCALPHA
-      "1.0 - ocol1.a;",          // INVSRCALPHA
-      "initial_ocol0.a;",        // DSTALPHA
-      "1.0 - initial_ocol0.a;",  // INVDSTALPHA
-  }};
-  out.Write("\tfloat4 blend_src;\n");
-  out.Write("\tblend_src.rgb = %s\n", blendSrcFactor[uid_data->blend_src_factor]);
-  out.Write("\tblend_src.a = %s\n", blendSrcFactorAlpha[uid_data->blend_src_factor_alpha]);
-  out.Write("\tfloat4 blend_dst;\n");
-  out.Write("\tblend_dst.rgb = %s\n", blendDstFactor[uid_data->blend_dst_factor]);
-  out.Write("\tblend_dst.a = %s\n", blendDstFactorAlpha[uid_data->blend_dst_factor_alpha]);
-
-  if (uid_data->blend_subtract == uid_data->blend_subtract_alpha)
-  {
-    if (uid_data->blend_subtract)
-    {
-      out.Write("\tocol0 = initial_ocol0 * blend_dst - ocol0 * blend_src;\n");
-    }
-    else
-    {
-      out.Write("\tocol0 = initial_ocol0 * blend_dst + ocol0 * blend_src;\n");
-    }
-  }
-  else
-  {
-    if (uid_data->blend_subtract)
-    {
-      out.Write("\tocol0.rgb = initial_ocol0.rgb * blend_dst.rgb - ocol0.rgb * blend_src.rgb;\n");
-    }
-    else
-    {
-      out.Write("\tocol0.rgb = initial_ocol0.rgb * blend_dst.rgb + ocol0.rgb * blend_src.rgb;\n");
-    }
-
-    if (uid_data->blend_subtract_alpha)
-    {
-      out.Write("\tocol0.a = initial_ocol0.a * blend_dst.a - ocol0.a * blend_src.a;\n");
-    }
-    else
-    {
-      out.Write("\tocol0.a = initial_ocol0.a * blend_dst.a + ocol0.a * blend_src.a;\n");
-    }
-  }
 }
 
 static void WriteLogicOp(ShaderCode& out, const pixel_shader_uid_data* uid_data)
@@ -1647,6 +1427,9 @@ static void WriteLogicOp(ShaderCode& out, const pixel_shader_uid_data* uid_data)
   out.Write("\tint3 new_color = int3(ocol0.rgb * 255.0);\n");
   out.Write("%s", logicOps[uid_data->logic_mode]);
   out.Write("\tocol0.rgb = float3(new_color & 255) / 255.0;\n");
+
+  //
+  out.Write("\treal_ocol0 = ocol0;\n");
 }
 
 static void WriteZCoord(ShaderCode& out, APIType api_type, const ShaderHostConfig& host_config,

@@ -43,16 +43,9 @@ struct pixel_shader_uid_data
   u32 numColorChans : 2;
   u32 rgba6_format : 1;
   u32 dither : 1;
-  u32 uint_output : 1;
-  u32 blend_enable : 1;            // Only used with shader_framebuffer_fetch blend
-  u32 blend_src_factor : 3;        // Only used with shader_framebuffer_fetch blend
-  u32 blend_src_factor_alpha : 3;  // Only used with shader_framebuffer_fetch blend
-  u32 blend_dst_factor : 3;        // Only used with shader_framebuffer_fetch blend
-  u32 blend_dst_factor_alpha : 3;  // Only used with shader_framebuffer_fetch blend
-  u32 blend_subtract : 1;          // Only used with shader_framebuffer_fetch blend
-  u32 blend_subtract_alpha : 1;    // Only used with shader_framebuffer_fetch blend
 
-  u32 logic_op_enable : 4;
+  // shader logic
+  u32 logic_op_enable : 3;
   u32 logic_mode : 4;
 
   u32 texMtxInfo_n_projection : 8;  // 8x1 bit

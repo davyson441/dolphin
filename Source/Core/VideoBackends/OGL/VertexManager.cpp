@@ -129,6 +129,18 @@ void VertexManager::UploadConstants()
 void VertexManager::DrawCurrentBatch(u32 base_index, u32 num_indices, u32 base_vertex)
 {
   g_renderer->DrawIndexed(base_index, num_indices, base_vertex);
+  // dual source blend
+  if (!g_ActiveConfig.backend_info.bSupportsDualSourceBlend)
+  {
+    const AbstractPipeline* pipeline = GetPipelineForAlphaPass();
+    if (pipeline)
+    {
+      g_renderer->SetPipeline(pipeline);
+      // Execute the draw, again
+      g_renderer->DrawIndexed(base_index, num_indices, base_vertex);
+    }
+  }
+
   g_Config.iSaveTargetId++;
   ClearEFBCache();
 }

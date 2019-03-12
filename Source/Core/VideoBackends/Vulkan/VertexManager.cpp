@@ -170,7 +170,7 @@ void VertexManager::DrawCurrentBatch(u32 base_index, u32 num_indices, u32 base_v
                      base_vertex, 0);
 
     // dual source blend
-    if (!g_vulkan_context->SupportsDualSourceBlend())
+    if (!g_ActiveConfig.backend_info.bSupportsDualSourceBlend)
     {
       const AbstractPipeline* pipeline = GetPipelineForAlphaPass();
       if(pipeline)

@@ -18,14 +18,6 @@
 #include "Core/Core.h"
 #include "Core/Host.h"
 
-// TODO: ugly
-#ifdef _WIN32
-#include "VideoBackends/D3D/VideoBackend.h"
-#endif
-#ifndef ANDROID
-#include "VideoBackends/Null/VideoBackend.h"
-#include "VideoBackends/Software/VideoBackend.h"
-#endif
 #include "VideoBackends/OGL/VideoBackend.h"
 #include "VideoBackends/Vulkan/VideoBackend.h"
 
@@ -182,16 +174,8 @@ u16 VideoBackendBase::Video_GetBoundingBox(int index)
 
 void VideoBackendBase::PopulateList()
 {
-  // OGL > D3D11 > Vulkan > SW > Null
   g_available_video_backends.push_back(std::make_unique<OGL::VideoBackend>());
-#ifdef _WIN32
-  g_available_video_backends.push_back(std::make_unique<DX11::VideoBackend>());
-#endif
   g_available_video_backends.push_back(std::make_unique<Vulkan::VideoBackend>());
-#ifndef ANDROID
-  g_available_video_backends.push_back(std::make_unique<SW::VideoSoftware>());
-  g_available_video_backends.push_back(std::make_unique<Null::VideoBackend>());
-#endif
 
   const auto iter =
       std::find_if(g_available_video_backends.begin(), g_available_video_backends.end(),

@@ -72,23 +72,6 @@ ShaderCode GenerateShader(APIType api_type, const UidData* uid_data)
               "layout(location = 0) out vec4 ocol0;"
               "void main(){\n");
   }
-  else if (api_type == APIType::D3D)
-  {
-    out.Write("Texture2DArray tex0 : register(t0);\n"
-              "SamplerState samp0 : register(s0);\n"
-              "uniform float3 filter_coefficients;\n"
-              "uniform float gamma_rcp;\n"
-              "uniform float2 clamp_tb;\n"
-              "uniform float pixel_height;\n\n");
-    out.Write("float4 SampleEFB(float3 uv, float y_offset) {\n"
-              "  return tex0.Sample(samp0, float3(uv.x, clamp(uv.y + (y_offset * pixel_height), "
-              "clamp_tb.x, clamp_tb.y), %s));\n"
-              "}\n",
-              mono_depth ? "0.0" : "uv.z");
-    out.Write("void main(out float4 ocol0 : SV_Target,\n"
-              "          in float4 pos : SV_Position,\n"
-              "          in float3 uv0 : TEXCOORD0) {\n");
-  }
 
   // The copy filter applies to both color and depth copies. This has been verified on hardware.
   // The filter is only applied to the RGB channels, the alpha channel is left intact.

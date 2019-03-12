@@ -136,7 +136,8 @@ static VkPipelineDepthStencilStateCreateInfo GetVulkanDepthStencilState(const De
 
 static VkPipelineColorBlendAttachmentState GetVulkanAttachmentBlendState(const BlendingState& state)
 {
-  bool doDualSourceBlend = g_vulkan_context->SupportsDualSourceBlend() && state.IsDualSourceBlend();
+  bool doDualSourceBlend =
+      g_ActiveConfig.backend_info.bSupportsDualSourceBlend && state.IsDualSourceBlend();
   VkPipelineColorBlendAttachmentState vk_state = {};
   vk_state.blendEnable = static_cast<VkBool32>(state.blendenable);
   vk_state.colorBlendOp = state.subtract ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
