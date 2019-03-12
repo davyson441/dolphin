@@ -180,7 +180,7 @@ bool CommandBufferManager::CreateSubmitThread()
         return;
       }
 
-      PendingCommandBufferSubmit submit = m_pending_submits.front();
+      const PendingCommandBufferSubmit& submit = m_pending_submits.front();
       {
         std::lock_guard<std::mutex> guard(m_pending_submit_lock);
         m_pending_submits.pop_front();
