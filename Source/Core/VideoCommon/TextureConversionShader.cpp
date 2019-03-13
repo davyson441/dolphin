@@ -85,18 +85,6 @@ static void WriteHeader(char*& p, APIType ApiType)
     WRITE(p, "SAMPLER_BINDING(0) uniform sampler2DArray samp0;\n");
     WRITE(p, "FRAGMENT_OUTPUT_LOCATION(0) out float4 ocol0;\n");
   }
-  else  // D3D
-  {
-    WRITE(p, "cbuffer PSBlock : register(b0) {\n");
-    WRITE(p, "  int4 position;\n");
-    WRITE(p, "  float y_scale;\n");
-    WRITE(p, "  float gamma_rcp;\n");
-    WRITE(p, "  float2 clamp_tb;\n");
-    WRITE(p, "  float3 filter_coefficients;\n");
-    WRITE(p, "};\n");
-    WRITE(p, "sampler samp0 : register(s0);\n");
-    WRITE(p, "Texture2DArray Tex0 : register(t0);\n");
-  }
 
   // Alpha channel in the copy is set to 1 the EFB format does not have an alpha channel.
   WRITE(p, "float4 RGBA8ToRGB8(float4 src)\n");
@@ -148,10 +136,7 @@ static void WriteSampleFunction(char*& p, const EFBCopyParams& params, APIType A
         WRITE(p, "(");
     }
 
-    if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-      WRITE(p, "texture(samp0, float3(");
-    else
-      WRITE(p, "Tex0.Sample(samp0, float3(");
+    WRITE(p, "texture(samp0, float3(");
 
     WRITE(p, "uv.x + float(xoffset) * pixel_size.x, ");
 
@@ -210,21 +195,10 @@ static void WriteSwizzler(char*& p, const EFBCopyParams& params, EFBCopyFormat f
   WriteHeader(p, ApiType);
   WriteSampleFunction(p, params, ApiType);
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-  {
-    WRITE(p, "void main()\n");
-    WRITE(p, "{\n"
-             "  int2 sampleUv;\n"
-             "  int2 uv1 = int2(gl_FragCoord.xy);\n");
-  }
-  else  // D3D
-  {
-    WRITE(p, "void main(\n");
-    WRITE(p, "  out float4 ocol0 : SV_Target, in float4 rawpos : SV_Position)\n");
-    WRITE(p, "{\n"
-             "  int2 sampleUv;\n"
-             "  int2 uv1 = int2(rawpos.xy);\n");
-  }
+  WRITE(p, "void main()\n");
+  WRITE(p, "{\n"
+            "  int2 sampleUv;\n"
+            "  int2 uv1 = int2(gl_FragCoord.xy);\n");
 
   int blkW = TexDecoder_GetEFBCopyBlockWidthInTexels(format);
   int blkH = TexDecoder_GetEFBCopyBlockHeightInTexels(format);

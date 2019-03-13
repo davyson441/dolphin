@@ -352,9 +352,6 @@ PixelShaderUid GetPixelShaderUid()
   {
     if (g_ActiveConfig.backend_info.bSupportsDualSourceBlend)
     {
-      // hardware blend
-      uid_data->logic_op_enable = 0;
-      uid_data->logic_mode = 0;
       uid_data->dualSrcBlend = true;
     }
     else
@@ -372,16 +369,7 @@ void ClearUnusedPixelShaderUidBits(APIType ApiType, const ShaderHostConfig& host
 {
   pixel_shader_uid_data* uid_data = uid->GetUidData<pixel_shader_uid_data>();
 
-  if (host_config.backend_dual_source_blend)
-  {
-    // don't use shader logic ops before hardware blend
-    if (uid_data->dualSrcBlend)
-    {
-      uid_data->logic_op_enable = 0;
-      uid_data->logic_mode = 0;
-    }
-  }
-  else
+  if (!host_config.backend_dual_source_blend)
   {
     uid_data->dualSrcBlend = 0;
   }
@@ -435,24 +423,10 @@ void WritePixelShaderCommonHeader(ShaderCode& out, APIType ApiType, u32 num_texg
             "int3 iround(float3 x) { return int3(round(x)); }\n"
             "int4 iround(float4 x) { return int4(round(x)); }\n\n");
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-  {
-    out.Write("SAMPLER_BINDING(0) uniform sampler2DArray samp[8];\n");
-  }
-  else  // D3D
-  {
-    // Declare samplers
-    out.Write("SamplerState samp[8] : register(s0);\n");
-    out.Write("\n");
-    out.Write("Texture2DArray Tex[8] : register(t0);\n");
-  }
+  out.Write("SAMPLER_BINDING(0) uniform sampler2DArray samp[8];\n");
   out.Write("\n");
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    out.Write("UBO_BINDING(std140, 1) uniform PSBlock {\n");
-  else
-    out.Write("cbuffer PSBlock : register(b0) {\n");
-
+  out.Write("UBO_BINDING(std140, 1) uniform PSBlock {\n");
   out.Write("\tint4 " I_COLORS "[4];\n"
             "\tint4 " I_KCOLORS "[4];\n"
             "\tint4 " I_ALPHA ";\n"
@@ -471,28 +445,16 @@ void WritePixelShaderCommonHeader(ShaderCode& out, APIType ApiType, u32 num_texg
   if (host_config.per_pixel_lighting)
   {
     out.Write("%s", s_lighting_struct);
-
-    if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-      out.Write("UBO_BINDING(std140, 2) uniform VSBlock {\n");
-    else
-      out.Write("cbuffer VSBlock : register(b1) {\n");
-
+    out.Write("UBO_BINDING(std140, 2) uniform VSBlock {\n");
     out.Write(s_shader_uniforms);
     out.Write("};\n");
   }
 
   if (bounding_box)
   {
-    if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    {
-      out.Write("SSBO_BINDING(0) buffer BBox {\n"
-                "\tint bbox_left, bbox_right, bbox_top, bbox_bottom;\n"
-                "};\n");
-    }
-    else
-    {
-      out.Write("globallycoherent RWBuffer<int> bbox_data : register(u2);\n");
-    }
+    out.Write("SSBO_BINDING(0) buffer BBox {\n"
+              "\tint bbox_left, bbox_right, bbox_top, bbox_bottom;\n"
+              "};\n");
   }
 }
 
@@ -566,16 +528,8 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
     // all of the
     // ARB_image_load_store extension yet.
 
-    // D3D11 also has a way to force the driver to enable early-z, so we're fine here.
-    if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    {
-      // This is a #define which signals whatever early-z method the driver supports.
-      out.Write("FORCE_EARLY_Z; \n");
-    }
-    else
-    {
-      out.Write("[earlydepthstencil]\n");
-    }
+    // This is a #define which signals whatever early-z method the driver supports.
+    out.Write("FORCE_EARLY_Z; \n");
   }
 
   // Only use dual-source blending when required on drivers that don't support it very well.
@@ -584,20 +538,40 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
 
   if (use_dual_source)
   {
+    char const* output_location0;
+    char const* output_location1;
     if (DriverDetails::HasBug(DriverDetails::BUG_BROKEN_FRAGMENT_SHADER_INDEX_DECORATION))
     {
-      out.Write("FRAGMENT_OUTPUT_LOCATION(0) out vec4 ocol0;\n");
-      out.Write("FRAGMENT_OUTPUT_LOCATION(1) out vec4 ocol1;\n");
+      output_location0 = "FRAGMENT_OUTPUT_LOCATION(0)";
+      output_location1 = "FRAGMENT_OUTPUT_LOCATION(1)";
     }
     else
     {
-      out.Write("FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 0) out vec4 ocol0;\n");
-      out.Write("FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 1) out vec4 ocol1;\n");
+      output_location0 = "FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 0)";
+      output_location1 = "FRAGMENT_OUTPUT_LOCATION_INDEXED(0, 1)";
     }
+
+    if (use_shader_logic)
+    {
+      if (host_config.backend_shader_framebuffer_fetch)
+      {
+        out.Write("%s FRAGMENT_INOUT vec4 real_ocol0;\n", output_location0);
+      }
+      else
+      {
+        out.Write("%s out vec4 real_ocol0;\n", output_location0);
+      }
+    }
+    else
+    {
+      out.Write("%s out vec4 ocol0;\n", output_location0);
+    }
+
+    // dual src output1
+    out.Write("%s out vec4 ocol1;\n", output_location1);
   }
   else if (use_shader_logic)
   {
-    // use shader logic without shader blend
     if (host_config.backend_shader_framebuffer_fetch)
     {
       out.Write("FRAGMENT_OUTPUT_LOCATION(0) FRAGMENT_INOUT vec4 real_ocol0;\n");
@@ -661,7 +635,6 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
       out.Write("\tfloat4 initial_ocol0 = float4(0.0);\n");
     }
     out.Write("\tfloat4 ocol0;\n");
-    out.Write("\tfloat4 ocol1;\n");
   }
 
   out.Write("\tint4 c0 = " I_COLORS "[1], c1 = " I_COLORS "[2], c2 = " I_COLORS

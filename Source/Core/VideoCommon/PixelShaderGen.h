@@ -18,7 +18,7 @@ struct pixel_shader_uid_data
   u32 num_values;  // TODO: Shouldn't be a u32
   u32 NumValues() const { return num_values; }
   u32 components : 2;
-  u32 dualSrcBlend : 2;
+  u32 dualSrcBlend : 1;
   u32 useDstAlpha : 1;
   u32 Pretest : 2;
   u32 nIndirectStagesUsed : 4;
@@ -30,6 +30,7 @@ struct pixel_shader_uid_data
   u32 alpha_test_logic : 2;
   u32 alpha_test_use_zcomploc_hack : 1;
   u32 fog_proj : 1;
+  //-- 31
 
   u32 fog_fsel : 3;
   u32 fog_RangeBaseEnabled : 1;
@@ -43,10 +44,12 @@ struct pixel_shader_uid_data
   u32 numColorChans : 2;
   u32 rgba6_format : 1;
   u32 dither : 1;
+  //-- 16
 
   // shader logic
-  u32 logic_op_enable : 3;
+  u32 logic_op_enable : 1;
   u32 logic_mode : 4;
+  u32 pad0 : 4;
 
   u32 texMtxInfo_n_projection : 8;  // 8x1 bit
   u32 tevindref_bi0 : 3;

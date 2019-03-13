@@ -213,7 +213,8 @@ bool RasterFont::CreateTexture()
                                     nullptr};
   VkBuffer temp_buffer;
   VkDeviceMemory temp_buffer_memory;
-  VkResult res = g_vulkan_context->Allocate(&buffer_info, &temp_buffer, &temp_buffer_memory);
+  VkResult res = g_vulkan_context->Allocate(&buffer_info, &temp_buffer, &temp_buffer_memory,
+                                            STAGING_BUFFER_TYPE_UPLOAD);
   if (res != VK_SUCCESS)
   {
     LOG_VULKAN_ERROR(res, "Allocate buffer failed: ");

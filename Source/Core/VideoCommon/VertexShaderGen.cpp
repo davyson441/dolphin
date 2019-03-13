@@ -89,10 +89,7 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
   out.Write("%s", s_lighting_struct);
 
   // uniforms
-  if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
-    out.Write("UBO_BINDING(std140, 2) uniform VSBlock {\n");
-  else
-    out.Write("cbuffer VSBlock {\n");
+  out.Write("UBO_BINDING(std140, 2) uniform VSBlock {\n");
 
   out.Write(s_shader_uniforms);
   out.Write("};\n");
@@ -101,92 +98,64 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
   GenerateVSOutputMembers(out, api_type, uid_data->numTexGens, host_config, "");
   out.Write("};\n");
 
-  if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
+  out.Write("ATTRIBUTE_LOCATION(%d) in float4 rawpos;\n", SHADER_POSITION_ATTRIB);
+  if (uid_data->components & VB_HAS_POSMTXIDX)
+    out.Write("ATTRIBUTE_LOCATION(%d) in uint4 posmtx;\n", SHADER_POSMTX_ATTRIB);
+  if (uid_data->components & VB_HAS_NRM0)
+    out.Write("ATTRIBUTE_LOCATION(%d) in float3 rawnorm0;\n", SHADER_NORM0_ATTRIB);
+  if (uid_data->components & VB_HAS_NRM1)
+    out.Write("ATTRIBUTE_LOCATION(%d) in float3 rawnorm1;\n", SHADER_NORM1_ATTRIB);
+  if (uid_data->components & VB_HAS_NRM2)
+    out.Write("ATTRIBUTE_LOCATION(%d) in float3 rawnorm2;\n", SHADER_NORM2_ATTRIB);
+
+  if (uid_data->components & VB_HAS_COL0)
+    out.Write("ATTRIBUTE_LOCATION(%d) in float4 rawcolor0;\n", SHADER_COLOR0_ATTRIB);
+  if (uid_data->components & VB_HAS_COL1)
+    out.Write("ATTRIBUTE_LOCATION(%d) in float4 rawcolor1;\n", SHADER_COLOR1_ATTRIB);
+
+  for (int i = 0; i < 8; ++i)
   {
-    out.Write("ATTRIBUTE_LOCATION(%d) in float4 rawpos;\n", SHADER_POSITION_ATTRIB);
-    if (uid_data->components & VB_HAS_POSMTXIDX)
-      out.Write("ATTRIBUTE_LOCATION(%d) in uint4 posmtx;\n", SHADER_POSMTX_ATTRIB);
-    if (uid_data->components & VB_HAS_NRM0)
-      out.Write("ATTRIBUTE_LOCATION(%d) in float3 rawnorm0;\n", SHADER_NORM0_ATTRIB);
-    if (uid_data->components & VB_HAS_NRM1)
-      out.Write("ATTRIBUTE_LOCATION(%d) in float3 rawnorm1;\n", SHADER_NORM1_ATTRIB);
-    if (uid_data->components & VB_HAS_NRM2)
-      out.Write("ATTRIBUTE_LOCATION(%d) in float3 rawnorm2;\n", SHADER_NORM2_ATTRIB);
-
-    if (uid_data->components & VB_HAS_COL0)
-      out.Write("ATTRIBUTE_LOCATION(%d) in float4 rawcolor0;\n", SHADER_COLOR0_ATTRIB);
-    if (uid_data->components & VB_HAS_COL1)
-      out.Write("ATTRIBUTE_LOCATION(%d) in float4 rawcolor1;\n", SHADER_COLOR1_ATTRIB);
-
-    for (int i = 0; i < 8; ++i)
+    u32 hastexmtx = (uid_data->components & (VB_HAS_TEXMTXIDX0 << i));
+    if ((uid_data->components & (VB_HAS_UV0 << i)) || hastexmtx)
     {
-      u32 hastexmtx = (uid_data->components & (VB_HAS_TEXMTXIDX0 << i));
-      if ((uid_data->components & (VB_HAS_UV0 << i)) || hastexmtx)
-      {
-        out.Write("ATTRIBUTE_LOCATION(%d) in float%d rawtex%d;\n", SHADER_TEXTURE0_ATTRIB + i,
-                  hastexmtx ? 3 : 2, i);
-      }
+      out.Write("ATTRIBUTE_LOCATION(%d) in float%d rawtex%d;\n", SHADER_TEXTURE0_ATTRIB + i,
+                hastexmtx ? 3 : 2, i);
     }
-
-    if (host_config.backend_geometry_shaders)
-    {
-      out.Write("VARYING_LOCATION(0) out VertexData {\n");
-      GenerateVSOutputMembers(out, api_type, uid_data->numTexGens, host_config,
-                              GetInterpolationQualifier(msaa, ssaa, true, false));
-      out.Write("} vs;\n");
-    }
-    else
-    {
-      // Let's set up attributes
-      u32 counter = 0;
-      out.Write("VARYING_LOCATION(%u) %s out float4 colors_0;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION(%u) %s out float4 colors_1;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      for (u32 i = 0; i < uid_data->numTexGens; ++i)
-      {
-        out.Write("VARYING_LOCATION(%u) %s out float3 tex%u;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa), i);
-      }
-      if (!host_config.fast_depth_calc)
-        out.Write("VARYING_LOCATION(%u) %s out float4 clipPos;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-      if (per_pixel_lighting)
-      {
-        out.Write("VARYING_LOCATION(%u) %s out float3 Normal;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-        out.Write("VARYING_LOCATION(%u) %s out float3 WorldPos;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-      }
-    }
-
-    out.Write("void main()\n{\n");
   }
-  else  // D3D
+
+  if (host_config.backend_geometry_shaders)
   {
-    out.Write("VS_OUTPUT main(\n");
-
-    // inputs
-    if (uid_data->components & VB_HAS_NRM0)
-      out.Write("  float3 rawnorm0 : NORMAL0,\n");
-    if (uid_data->components & VB_HAS_NRM1)
-      out.Write("  float3 rawnorm1 : NORMAL1,\n");
-    if (uid_data->components & VB_HAS_NRM2)
-      out.Write("  float3 rawnorm2 : NORMAL2,\n");
-    if (uid_data->components & VB_HAS_COL0)
-      out.Write("  float4 rawcolor0 : COLOR0,\n");
-    if (uid_data->components & VB_HAS_COL1)
-      out.Write("  float4 rawcolor1 : COLOR1,\n");
-    for (int i = 0; i < 8; ++i)
-    {
-      u32 hastexmtx = (uid_data->components & (VB_HAS_TEXMTXIDX0 << i));
-      if ((uid_data->components & (VB_HAS_UV0 << i)) || hastexmtx)
-        out.Write("  float%d rawtex%d : TEXCOORD%d,\n", hastexmtx ? 3 : 2, i, i);
-    }
-    if (uid_data->components & VB_HAS_POSMTXIDX)
-      out.Write("  uint4 posmtx : BLENDINDICES,\n");
-    out.Write("  float4 rawpos : POSITION) {\n");
+    out.Write("VARYING_LOCATION(0) out VertexData {\n");
+    GenerateVSOutputMembers(out, api_type, uid_data->numTexGens, host_config,
+                            GetInterpolationQualifier(msaa, ssaa, true, false));
+    out.Write("} vs;\n");
   }
+  else
+  {
+    // Let's set up attributes
+    u32 counter = 0;
+    out.Write("VARYING_LOCATION(%u) %s out float4 colors_0;\n", counter++,
+              GetInterpolationQualifier(msaa, ssaa));
+    out.Write("VARYING_LOCATION(%u) %s out float4 colors_1;\n", counter++,
+              GetInterpolationQualifier(msaa, ssaa));
+    for (u32 i = 0; i < uid_data->numTexGens; ++i)
+    {
+      out.Write("VARYING_LOCATION(%u) %s out float3 tex%u;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa), i);
+    }
+    if (!host_config.fast_depth_calc)
+      out.Write("VARYING_LOCATION(%u) %s out float4 clipPos;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa));
+    if (per_pixel_lighting)
+    {
+      out.Write("VARYING_LOCATION(%u) %s out float3 Normal;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa));
+      out.Write("VARYING_LOCATION(%u) %s out float3 WorldPos;\n", counter++,
+                GetInterpolationQualifier(msaa, ssaa));
+    }
+  }
+
+  out.Write("void main()\n{\n");
 
   out.Write("VS_OUTPUT o;\n");
 

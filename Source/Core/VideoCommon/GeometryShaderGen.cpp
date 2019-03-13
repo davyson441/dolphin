@@ -60,29 +60,23 @@ ShaderCode GenerateGeometryShaderCode(APIType ApiType, const ShaderHostConfig& h
   if (wireframe)
     vertex_out++;
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
+  // Insert layout parameters
+  if (host_config.backend_gs_instancing)
   {
-    // Insert layout parameters
-    if (host_config.backend_gs_instancing)
-    {
-      out.Write("layout(%s, invocations = %d) in;\n", primitives_ogl[primitive_type_index], 1);
-      out.Write("layout(%s_strip, max_vertices = %d) out;\n", wireframe ? "line" : "triangle",
-                vertex_out);
-    }
-    else
-    {
-      out.Write("layout(%s) in;\n", primitives_ogl[primitive_type_index]);
-      out.Write("layout(%s_strip, max_vertices = %d) out;\n", wireframe ? "line" : "triangle", vertex_out);
-    }
+    out.Write("layout(%s, invocations = %d) in;\n", primitives_ogl[primitive_type_index], 1);
+    out.Write("layout(%s_strip, max_vertices = %d) out;\n", wireframe ? "line" : "triangle",
+              vertex_out);
+  }
+  else
+  {
+    out.Write("layout(%s) in;\n", primitives_ogl[primitive_type_index]);
+    out.Write("layout(%s_strip, max_vertices = %d) out;\n", wireframe ? "line" : "triangle", vertex_out);
   }
 
   out.Write("%s", s_lighting_struct);
 
   // uniforms
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    out.Write("UBO_BINDING(std140, 3) uniform GSBlock {\n");
-  else
-    out.Write("cbuffer GSBlock {\n");
+  out.Write("UBO_BINDING(std140, 3) uniform GSBlock {\n");
 
   out.Write("\tfloat4 " I_LINEPTPARAMS ";\n"
             "\tint4 " I_TEXOFFSET ";\n"
@@ -92,61 +86,27 @@ ShaderCode GenerateGeometryShaderCode(APIType ApiType, const ShaderHostConfig& h
   GenerateVSOutputMembers<ShaderCode>(out, ApiType, uid_data->numTexGens, host_config, "");
   out.Write("};\n");
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-  {
-    if (host_config.backend_gs_instancing)
-      out.Write("#define InstanceID gl_InvocationID\n");
+  if (host_config.backend_gs_instancing)
+    out.Write("#define InstanceID gl_InvocationID\n");
 
-    out.Write("VARYING_LOCATION(0) in VertexData {\n");
-    GenerateVSOutputMembers<ShaderCode>(out, ApiType, uid_data->numTexGens, host_config,
-                                        GetInterpolationQualifier(msaa, ssaa, true, true));
-    out.Write("} vs[%d];\n", vertex_in);
+  out.Write("VARYING_LOCATION(0) in VertexData {\n");
+  GenerateVSOutputMembers<ShaderCode>(out, ApiType, uid_data->numTexGens, host_config,
+                                      GetInterpolationQualifier(msaa, ssaa, true, true));
+  out.Write("} vs[%d];\n", vertex_in);
 
-    out.Write("VARYING_LOCATION(0) out VertexData {\n");
-    GenerateVSOutputMembers<ShaderCode>(out, ApiType, uid_data->numTexGens, host_config,
-                                        GetInterpolationQualifier(msaa, ssaa, true, false));
+  out.Write("VARYING_LOCATION(0) out VertexData {\n");
+  GenerateVSOutputMembers<ShaderCode>(out, ApiType, uid_data->numTexGens, host_config,
+                                      GetInterpolationQualifier(msaa, ssaa, true, false));
 
-    out.Write("} ps;\n");
+  out.Write("} ps;\n");
 
-    out.Write("void main()\n{\n");
-  }
-  else  // D3D
-  {
-    out.Write("struct VertexData {\n");
-    out.Write("\tVS_OUTPUT o;\n");
-
-    out.Write("};\n");
-
-    if (host_config.backend_gs_instancing)
-    {
-      out.Write("[maxvertexcount(%d)]\n[instance(%d)]\n", vertex_out, 1);
-      out.Write("void main(%s VS_OUTPUT o[%d], inout %sStream<VertexData> output, in uint "
-                "InstanceID : SV_GSInstanceID)\n{\n",
-                primitives_d3d[primitive_type_index], vertex_in, wireframe ? "Line" : "Triangle");
-    }
-    else
-    {
-      out.Write("[maxvertexcount(%d)]\n", vertex_out);
-      out.Write("void main(%s VS_OUTPUT o[%d], inout %sStream<VertexData> output)\n{\n",
-                primitives_d3d[primitive_type_index], vertex_in, wireframe ? "Line" : "Triangle");
-    }
-
-    out.Write("\tVertexData ps;\n");
-  }
+  out.Write("void main()\n{\n");
 
   if (primitive_type == PrimitiveType::Lines)
   {
-    if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    {
-      out.Write("\tVS_OUTPUT start, end;\n");
-      AssignVSOutputMembers(out, "start", "vs[0]", uid_data->numTexGens, host_config);
-      AssignVSOutputMembers(out, "end", "vs[1]", uid_data->numTexGens, host_config);
-    }
-    else
-    {
-      out.Write("\tVS_OUTPUT start = o[0];\n");
-      out.Write("\tVS_OUTPUT end = o[1];\n");
-    }
+    out.Write("\tVS_OUTPUT start, end;\n");
+    AssignVSOutputMembers(out, "start", "vs[0]", uid_data->numTexGens, host_config);
+    AssignVSOutputMembers(out, "end", "vs[1]", uid_data->numTexGens, host_config);
 
     // GameCube/Wii's line drawing algorithm is a little quirky. It does not
     // use the correct line caps. Instead, the line caps are vertical or
@@ -167,15 +127,8 @@ ShaderCode GenerateGeometryShaderCode(APIType ApiType, const ShaderHostConfig& h
   }
   else if (primitive_type == PrimitiveType::Points)
   {
-    if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    {
-      out.Write("\tVS_OUTPUT center;\n");
-      AssignVSOutputMembers(out, "center", "vs[0]", uid_data->numTexGens, host_config);
-    }
-    else
-    {
-      out.Write("\tVS_OUTPUT center = o[0];\n");
-    }
+    out.Write("\tVS_OUTPUT center;\n");
+    AssignVSOutputMembers(out, "center", "vs[0]", uid_data->numTexGens, host_config);
 
     // Offset from center to upper right vertex
     // Lerp PointSize/2 from [0,0..VpWidth,VpHeight] to [-1,1..1,-1]
@@ -188,23 +141,16 @@ ShaderCode GenerateGeometryShaderCode(APIType ApiType, const ShaderHostConfig& h
 
   out.Write("\tfor (int i = 0; i < %d; ++i) {\n", vertex_in);
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-  {
-    out.Write("\tVS_OUTPUT f;\n");
-    AssignVSOutputMembers(out, "f", "vs[i]", uid_data->numTexGens, host_config);
+  out.Write("\tVS_OUTPUT f;\n");
+  AssignVSOutputMembers(out, "f", "vs[i]", uid_data->numTexGens, host_config);
 
-    if (host_config.backend_depth_clamp &&
-        DriverDetails::HasBug(DriverDetails::BUG_BROKEN_CLIP_DISTANCE))
-    {
-      // On certain GPUs we have to consume the clip distance from the vertex shader
-      // or else the other vertex shader outputs will get corrupted.
-      out.Write("\tf.clipDist0 = gl_in[i].gl_ClipDistance[0];\n");
-      out.Write("\tf.clipDist1 = gl_in[i].gl_ClipDistance[1];\n");
-    }
-  }
-  else
+  if (host_config.backend_depth_clamp &&
+      DriverDetails::HasBug(DriverDetails::BUG_BROKEN_CLIP_DISTANCE))
   {
-    out.Write("\tVS_OUTPUT f = o[i];\n");
+    // On certain GPUs we have to consume the clip distance from the vertex shader
+    // or else the other vertex shader outputs will get corrupted.
+    out.Write("\tf.clipDist0 = gl_in[i].gl_ClipDistance[0];\n");
+    out.Write("\tf.clipDist1 = gl_in[i].gl_ClipDistance[1];\n");
   }
 
   if (primitive_type == PrimitiveType::Lines)
@@ -297,15 +243,8 @@ static void EmitVertex(ShaderCode& out, const ShaderHostConfig& host_config,
     out.Write("\tgl_Position.y = -gl_Position.y;\n");
     AssignVSOutputMembers(out, "ps", vertex, uid_data->numTexGens, host_config);
   }
-  else
-  {
-    out.Write("\tps.o = %s;\n", vertex);
-  }
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    out.Write("\tEmitVertex();\n");
-  else
-    out.Write("\toutput.Append(ps);\n");
+  out.Write("\tEmitVertex();\n");
 }
 
 static void EndPrimitive(ShaderCode& out, const ShaderHostConfig& host_config,
@@ -314,8 +253,5 @@ static void EndPrimitive(ShaderCode& out, const ShaderHostConfig& host_config,
   if (wireframe)
     EmitVertex(out, host_config, uid_data, "first", ApiType, wireframe);
 
-  if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
-    out.Write("\tEndPrimitive();\n");
-  else
-    out.Write("\toutput.RestartStrip();\n");
+  out.Write("\tEndPrimitive();\n");
 }
