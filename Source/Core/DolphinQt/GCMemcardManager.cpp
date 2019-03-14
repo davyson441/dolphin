@@ -15,7 +15,6 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QPixmap>
 #include <QPushButton>
 #include <QTableWidget>
@@ -26,6 +25,8 @@
 #include "Common/StringUtil.h"
 
 #include "Core/HW/GCMemcard/GCMemcard.h"
+
+#include "DolphinQt/QtUtils/ModalMessageBox.h"
 
 constexpr u32 BANNER_WIDTH = 96;
 constexpr u32 ANIM_FRAME_WIDTH = 32;
@@ -306,7 +307,7 @@ void GCMemcardManager::ExportFiles(bool prompt)
 
   QString text = count == 1 ? tr("Successfully exported the save file.") :
                               tr("Successfully exported the %1 save files.").arg(count);
-  QMessageBox::information(this, tr("Success"), text);
+  ModalMessageBox::information(this, tr("Success"), text);
 }
 
 void GCMemcardManager::ExportAllFiles()
@@ -330,7 +331,7 @@ void GCMemcardManager::ImportFile()
 
   if (result != SUCCESS)
   {
-    QMessageBox::critical(this, tr("Import failed"), tr("Failed to import \"%1\".").arg(path));
+    ModalMessageBox::critical(this, tr("Import failed"), tr("Failed to import \"%1\".").arg(path));
     return;
   }
 
@@ -355,7 +356,9 @@ void GCMemcardManager::CopyFiles()
     const auto result = m_slot_memcard[!m_active_slot]->CopyFrom(*memcard, file_index);
 
     if (result != SUCCESS)
-      QMessageBox::warning(this, tr("Copy failed"), tr("Failed to copy file"));
+    {
+      ModalMessageBox::warning(this, tr("Copy failed"), tr("Failed to copy file"));
+    }
   }
 
   for (int i = 0; i < SLOT_COUNT; i++)
@@ -379,8 +382,9 @@ void GCMemcardManager::DeleteFiles()
   {
     QString text = count == 1 ? tr("Do you want to delete the selected save file?") :
                                 tr("Do you want to delete the %1 selected save files?").arg(count);
-    auto response =
-        QMessageBox::warning(this, tr("Question"), text, QMessageBox::Yes | QMessageBox::Abort);
+
+    auto response = ModalMessageBox::question(this, tr("Question"), text);
+    ;
 
     if (response == QMessageBox::Abort)
       return;
@@ -396,13 +400,19 @@ void GCMemcardManager::DeleteFiles()
   for (int file_index : file_indices)
   {
     if (memcard->RemoveFile(file_index) != SUCCESS)
-      QMessageBox::warning(this, tr("Remove failed"), tr("Failed to remove file"));
+    {
+      ModalMessageBox::warning(this, tr("Remove failed"), tr("Failed to remove file"));
+    }
   }
 
   if (!memcard->Save())
+  {
     PanicAlertT("File write failed");
+  }
   else
-    QMessageBox::information(this, tr("Success"), tr("Successfully deleted files."));
+  {
+    ModalMessageBox::information(this, tr("Success"), tr("Successfully deleted files."));
+  }
 
   UpdateSlotTable(m_active_slot);
   UpdateActions();

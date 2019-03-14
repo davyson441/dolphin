@@ -12,7 +12,6 @@
 #include <QGroupBox>
 #include <QInputDialog>
 #include <QLabel>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -29,6 +28,7 @@
 #include "Core/HW/GCMemcard/GCMemcard.h"
 
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
+#include "DolphinQt/QtUtils/ModalMessageBox.h"
 
 enum
 {
@@ -188,7 +188,7 @@ void GameCubePane::OnConfigPressed(int slot)
   {
     bool ok;
     const auto new_mac = QInputDialog::getText(
-        this, tr("Broadband adapter MAC address"), tr("Enter new broadband adapter MAC address:"),
+        this, tr("Broadband Adapter MAC address"), tr("Enter new Broadband Adapter MAC address:"),
         QLineEdit::Normal, QString::fromStdString(SConfig::GetInstance().m_bba_mac), &ok);
     if (ok)
       SConfig::GetInstance().m_bba_mac = new_mac.toStdString();
@@ -216,10 +216,10 @@ void GameCubePane::OnConfigPressed(int slot)
 
       if (!mc.IsValid())
       {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Cannot use that file as a memory card.\n%1\n"
-                                 "is not a valid GameCube memory card file")
-                                  .arg(filename));
+        ModalMessageBox::critical(this, tr("Error"),
+                                  tr("Cannot use that file as a memory card.\n%1\n"
+                                     "is not a valid GameCube memory card file")
+                                      .arg(filename));
 
         return;
       }
@@ -237,7 +237,8 @@ void GameCubePane::OnConfigPressed(int slot)
 
       if (path_abs == path_b)
       {
-        QMessageBox::critical(this, tr("Error"), tr("The same file can't be used in both slots."));
+        ModalMessageBox::critical(this, tr("Error"),
+                                  tr("The same file can't be used in both slots."));
         return;
       }
     }
@@ -332,6 +333,8 @@ void GameCubePane::LoadSettings()
 
 void GameCubePane::SaveSettings()
 {
+  Config::ConfigChangeCallbackGuard config_guard;
+
   SConfig& params = SConfig::GetInstance();
 
   // IPL Settings

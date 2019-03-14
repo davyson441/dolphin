@@ -20,7 +20,6 @@
 #include <QListView>
 #include <QMap>
 #include <QMenu>
-#include <QMessageBox>
 #include <QProgressDialog>
 #include <QShortcut>
 #include <QSortFilterProxyModel>
@@ -42,7 +41,9 @@
 #include "DolphinQt/GameList/GameListModel.h"
 #include "DolphinQt/GameList/GridProxyModel.h"
 #include "DolphinQt/GameList/ListProxyModel.h"
+#include "DolphinQt/MenuBar.h"
 #include "DolphinQt/QtUtils/DoubleClickEventFilter.h"
+#include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/WiiUpdate.h"
@@ -107,8 +108,8 @@ void GameList::MakeListView()
   m_list->setCurrentIndex(QModelIndex());
   m_list->setContextMenuPolicy(Qt::CustomContextMenu);
   m_list->setWordWrap(false);
-  m_list->verticalHeader()->setDefaultSectionSize(m_list->verticalHeader()->defaultSectionSize() *
-                                                  1.25);
+  // Have 1 pixel of padding above and below the 32 pixel banners.
+  m_list->verticalHeader()->setDefaultSectionSize(32 + 2);
 
   connect(m_list, &QTableView::customContextMenuRequested, this, &GameList::ShowContextMenu);
   connect(m_list->selectionModel(), &QItemSelectionModel::selectionChanged,
@@ -120,6 +121,9 @@ void GameList::MakeListView()
 
   hor_header->restoreState(
       Settings::GetQSettings().value(QStringLiteral("tableheader/state")).toByteArray());
+
+  hor_header->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(hor_header, &QWidget::customContextMenuRequested, this, &GameList::ShowHeaderContextMenu);
 
   connect(hor_header, &QHeaderView::sortIndicatorChanged, this, &GameList::OnHeaderViewChanged);
   connect(hor_header, &QHeaderView::sectionCountChanged, this, &GameList::OnHeaderViewChanged);
@@ -221,6 +225,20 @@ void GameList::MakeGridView()
           [this](const QItemSelection&, const QItemSelection&) {
             emit SelectionChanged(GetSelectedGame());
           });
+}
+
+void GameList::ShowHeaderContextMenu(const QPoint& pos)
+{
+  const MenuBar* const menu_bar = MenuBar::GetMenuBar();
+  if (!menu_bar)
+    return;
+
+  QMenu* const list_columns_menu = menu_bar->GetListColumnsMenu();
+  if (!list_columns_menu)
+    return;
+
+  const QWidget* const widget = qobject_cast<QWidget*>(sender());
+  list_columns_menu->exec(widget ? widget->mapToGlobal(pos) : pos);
 }
 
 void GameList::ShowContextMenu(const QPoint&)
@@ -424,12 +442,12 @@ void GameList::ExportWiiSave()
     QString failed_str;
     for (const std::string& str : failed)
       failed_str.append(QStringLiteral("\n")).append(QString::fromStdString(str));
-    QMessageBox::critical(this, tr("Save Export"),
-                          tr("Failed to export the following save files:") + failed_str);
+    ModalMessageBox::critical(this, tr("Save Export"),
+                              tr("Failed to export the following save files:") + failed_str);
   }
   else
   {
-    QMessageBox::information(this, tr("Save Export"), tr("Successfully exported save files"));
+    ModalMessageBox::information(this, tr("Save Export"), tr("Successfully exported save files"));
   }
 }
 
@@ -449,7 +467,7 @@ void GameList::CompressISO(bool decompress)
   auto files = GetSelectedGames();
   const auto game = GetSelectedGame();
 
-  if (files.size() == 0 || !game)
+  if (files.empty() || !game)
     return;
 
   bool wii_warning_given = false;
@@ -468,7 +486,7 @@ void GameList::CompressISO(bool decompress)
 
     if (!wii_warning_given && !decompress && file->GetPlatform() == DiscIO::Platform::WiiDisc)
     {
-      QMessageBox wii_warning(this);
+      ModalMessageBox wii_warning(this);
       wii_warning.setIcon(QMessageBox::Warning);
       wii_warning.setWindowTitle(tr("Confirm"));
       wii_warning.setText(tr("Are you sure?"));
@@ -528,7 +546,7 @@ void GameList::CompressISO(bool decompress)
       QFileInfo dst_info = QFileInfo(dst_path);
       if (dst_info.exists())
       {
-        QMessageBox confirm_replace(this);
+        ModalMessageBox confirm_replace(this);
         confirm_replace.setIcon(QMessageBox::Warning);
         confirm_replace.setWindowTitle(tr("Confirm"));
         confirm_replace.setText(tr("The file %1 already exists.\n"
@@ -575,11 +593,10 @@ void GameList::CompressISO(bool decompress)
     }
   }
 
-  QMessageBox(QMessageBox::Information, tr("Success"),
-              decompress ? tr("Successfully decompressed %n image(s).", "", files.size()) :
-                           tr("Successfully compressed %n image(s).", "", files.size()),
-              QMessageBox::Ok, this)
-      .exec();
+  ModalMessageBox::information(this, tr("Success"),
+                               decompress ?
+                                   tr("Successfully decompressed %n image(s).", "", files.size()) :
+                                   tr("Successfully compressed %n image(s).", "", files.size()));
 }
 
 void GameList::InstallWAD()
@@ -588,7 +605,7 @@ void GameList::InstallWAD()
   if (!game)
     return;
 
-  QMessageBox result_dialog(this);
+  ModalMessageBox result_dialog(this);
 
   const bool success = WiiUtils::InstallWAD(game->GetFilePath());
 
@@ -605,7 +622,7 @@ void GameList::UninstallWAD()
   if (!game)
     return;
 
-  QMessageBox warning_dialog(this);
+  ModalMessageBox warning_dialog(this);
 
   warning_dialog.setIcon(QMessageBox::Information);
   warning_dialog.setWindowTitle(tr("Confirm"));
@@ -616,7 +633,7 @@ void GameList::UninstallWAD()
   if (warning_dialog.exec() == QMessageBox::No)
     return;
 
-  QMessageBox result_dialog(this);
+  ModalMessageBox result_dialog(this);
 
   const bool success = WiiUtils::UninstallTitle(game->GetTitleID());
 
@@ -660,7 +677,7 @@ void GameList::OpenSaveFolder()
 
 void GameList::DeleteFile()
 {
-  QMessageBox confirm_dialog(this);
+  ModalMessageBox confirm_dialog(this);
 
   confirm_dialog.setIcon(QMessageBox::Warning);
   confirm_dialog.setWindowTitle(tr("Confirm"));
@@ -684,7 +701,7 @@ void GameList::DeleteFile()
         }
         else
         {
-          QMessageBox error_dialog(this);
+          ModalMessageBox error_dialog(this);
 
           error_dialog.setIcon(QMessageBox::Critical);
           error_dialog.setWindowTitle(tr("Failure"));

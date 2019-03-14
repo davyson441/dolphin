@@ -113,7 +113,6 @@ bool ForceFeedbackDevice::InitForceFeedback(const LPDIRECTINPUTDEVICE8 device, i
   diRF.lStart = diRF.lEnd = 0;
   DIPERIODIC diPE{};
   diPE.dwMagnitude = 0;
-  // Is it sensible to have a zero-offset?
   diPE.lOffset = 0;
   diPE.dwPhase = 0;
   diPE.dwPeriod = RUMBLE_PERIOD;

@@ -639,12 +639,6 @@
     <ClCompile Include="PowerPC\JitCommon\JitCache.cpp">
       <Filter>PowerPC\JitCommon</Filter>
     </ClCompile>
-    <ClCompile Include="PowerPC\Jit64\FPURegCache.cpp">
-      <Filter>PowerPC\Jit64</Filter>
-    </ClCompile>
-    <ClCompile Include="PowerPC\Jit64\GPRRegCache.cpp">
-      <Filter>PowerPC\Jit64</Filter>
-    </ClCompile>
     <ClCompile Include="PowerPC\Jit64\Jit_Branch.cpp">
       <Filter>PowerPC\Jit64</Filter>
     </ClCompile>
@@ -670,9 +664,6 @@
       <Filter>PowerPC\Jit64</Filter>
     </ClCompile>
     <ClCompile Include="PowerPC\Jit64\JitAsm.cpp">
-      <Filter>PowerPC\Jit64</Filter>
-    </ClCompile>
-    <ClCompile Include="PowerPC\Jit64\JitRegCache.cpp">
       <Filter>PowerPC\Jit64</Filter>
     </ClCompile>
     <ClCompile Include="HW\GCKeyboardEmu.cpp">
@@ -904,6 +895,9 @@
     <ClCompile Include="Config\WiimoteInputSettings.cpp">
       <Filter>Config</Filter>
     </ClCompile>
+    <ClCompile Include="PowerPC\Jit64\RegCache\FPURegCache.cpp" />
+    <ClCompile Include="PowerPC\Jit64\RegCache\GPRRegCache.cpp" />
+    <ClCompile Include="PowerPC\Jit64\RegCache\JitRegCache.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BootManager.h" />
