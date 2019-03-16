@@ -160,15 +160,7 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   ApproachPositionWithJerk(state, {-target.x, -target.z, target.y}, swing_group->GetMaxJerk(),
                            time_elapsed);
 
-  // Just jump to our target angle scaled by our progress to the target position.
-  // TODO: If we wanted to be less hacky we could use ApproachAngleWithAccel.
   const auto angle = state->position / swing_group->GetMaxDistance() * swing_group->GetTwistAngle();
-
-  // const auto old_angle = state->angle;
-  // state->angle = {-angle.z, 0, angle.x};
-
-  // // Update velocity based on change in angle.
-  // state->angular_velocity = state->angle - old_angle;
 
   // TODO: expose this setting in UI or calculate something sensible from jerk.
   constexpr auto MAX_ACCEL = float(MathUtil::TAU * 50);
