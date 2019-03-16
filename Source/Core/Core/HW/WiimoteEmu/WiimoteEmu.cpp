@@ -744,7 +744,7 @@ Common::Vec3 Wiimote::GetAcceleration()
   if (IsUpright())
     orientation *= Common::Matrix33::RotateX(float(MathUtil::TAU / 4));
 
-  // TODO: cursor accel:
+  // TODO: Cursor movement should produce acceleration.
 
   Common::Vec3 accel =
       orientation *
@@ -793,20 +793,7 @@ Common::Matrix44 Wiimote::GetTransformation() const
   // Includes positional and rotational effects of:
   // IR, Swing, Tilt
 
-  // INFO_LOG(WIIMOTE, "ang.x: %f vel.x: %f", m_cursor_state.angle.x,
-  //        m_cursor_state.angular_velocity.x);
-
-  const auto rot_mtx = Common::Matrix44::FromMatrix33(GetRotationalMatrix(
-      //  -m_tilt_state.angle - m_swing_state.angle
-      -m_cursor_state.angle));
-
-  std::string text;
-  for (float f : rot_mtx.data)
-    text += " " + std::to_string(f);
-
-  // INFO_LOG(WIIMOTE, "mtx: %s", text.c_str());
-
-  // TODO: think about and clean up matrix order, make nunchuk match.
+  // TODO: Think about and clean up matrix order, make nunchuk match.
   return Common::Matrix44::FromMatrix33(GetRotationalMatrix(
              -m_tilt_state.angle - m_swing_state.angle - m_cursor_state.angle)) *
          Common::Matrix44::Translate(-m_swing_state.position - m_cursor_state.position);
