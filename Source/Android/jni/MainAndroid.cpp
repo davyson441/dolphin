@@ -44,6 +44,7 @@
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ControlGroup.h"
 #include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
+#include "InputCommon/ControllerEmu/ControlGroup/Extension.h"
 #include "Core/Host.h"
 #include "Core/PowerPC/JitInterface.h"
 #include "Core/PowerPC/PowerPC.h"
@@ -363,6 +364,25 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_SetConfig(
 
   ini.GetOrCreateSection(section)->Set(key, value);
   ini.Save(File::GetUserPath(D_CONFIG_IDX) + std::string(file));
+
+  // change runtime wiimote extension
+  if (section == "Wiimote1" && key == "Extension")
+  {
+    ControllerEmu::ControlGroup* cg = Wiimote::GetWiimoteGroup(0, WiimoteEmu::WiimoteGroup::Extension);
+    ControllerEmu::Extension* extension = static_cast<ControllerEmu::Extension*>(cg);
+    if (value == "None")
+    {
+      extension->switch_extension = 0;
+    }
+    else if (value == "Classic")
+    {
+      extension->switch_extension = 2;
+    }
+    else if (value == "Nunchuk")
+    {
+      extension->switch_extension = 1;
+    }
+  }
 }
 
 JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_SaveState(JNIEnv* env,

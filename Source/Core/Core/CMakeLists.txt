@@ -321,9 +321,6 @@ endif()
 
 if(NOT ANDROID)
   target_link_libraries(core
-  PUBLIC
-    videonull
-    videosoftware
   PRIVATE
     pugixml
   )
