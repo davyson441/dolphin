@@ -110,6 +110,8 @@ void TextureCacheBase::Invalidate()
 
 TextureCacheBase::~TextureCacheBase()
 {
+  // Clear pending EFB copies first, so we don't try to flush them.
+  m_pending_efb_copies.clear();
   HiresTexture::Shutdown();
   Invalidate();
   Common::FreeAlignedMemory(temp);
