@@ -354,6 +354,10 @@ void NetPlayDialog::OnChat()
 {
   QueueOnObject(this, [this] {
     auto msg = m_chat_type_edit->text().toStdString();
+
+    if (msg.empty())
+      return;
+
     Settings::Instance().GetNetPlayClient()->SendChatMessage(msg);
     m_chat_type_edit->clear();
 

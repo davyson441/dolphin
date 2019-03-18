@@ -609,12 +609,12 @@ const AbstractPipeline* VertexManagerBase::GetPipelineForAlphaPass()
     pipeline_config.blending_state.hex = 0;
     pipeline_config.blending_state.alphaupdate = true;
     // diable fog
-    pixel_shader_uid_data* uid_data = pipeline_config.ps_uid.GetUidData<pixel_shader_uid_data>();
+    auto uid_data = pipeline_config.ps_uid.GetUidData<pixel_shader_uid_data>();
     uid_data->fog_fsel = 0;
     uid_data->fog_proj  = 0;
     uid_data->fog_RangeBaseEnabled = 0;
     // alpha pass
-    uid_data->useDstAlpha = true;
+    uid_data->useDstAlpha = 1;
 
     switch (g_ActiveConfig.iShaderCompilationMode)
     {
