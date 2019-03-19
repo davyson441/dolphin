@@ -330,6 +330,7 @@ void Jit64::mfspr(UGeckoInstruction inst)
     MOV(64, rax, MDisp(rcx, offsetof(CoreTiming::Globals, fake_TB_start_value)));
     SHR(64, rdx, Imm8(3));
     ADD(64, rax, rdx);
+    OR(64, rax, Imm8(1));
     MOV(64, PPCSTATE(spr[SPR_TL]), rax);
 
     if (CanMergeNextInstructions(1))
