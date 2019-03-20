@@ -71,7 +71,9 @@ private:
     u8 unknown_0x90[0x60];
 
     // address 0xF0
-    u8 initialized;
+    // Writes initialize the M+ to it's default (non-activated) state.
+    // Used to deactivate the M+ and activate an attached extension.
+    u8 init_trigger;
 
     // address 0xF1
     // Value is either 0 or 1.
@@ -90,12 +92,12 @@ private:
 
     // address 0xF7
     // Games read this value to know when the data at 0x50 is ready.
-    // Value is 0x02 upon activation.
-    // Real M+ changes this value from 0x4, 0x8, 0xc, and finally 0xe.
+    // Value is 0x02 upon activation. (via a write to 0xfe)
+    // Real M+ changes this value to 0x4, 0x8, 0xc, and finally 0xe.
     // Games then trigger a 2nd stage via a write to 0xf1.
     // Real M+ changes this value to 0x14, 0x18, and finally 0x1a.
     // Note: We don't progress like this. We jump to the final value as soon as possible.
-    u8 challenge_progress;
+    u8 challenge_state;
 
     // address 0xF8
     // Values are taken from the extension on the passthrough port.
@@ -123,11 +125,17 @@ private:
   static constexpr u16 CALIBRATION_FAST_SCALE_DEGREES = 0x4b0;
   static constexpr u16 CALIBRATION_SLOW_SCALE_DEGREES = 0x10e;
 
-  static constexpr u8 CHALLENGE_START = 0x02;
-  static constexpr u8 CHALLENGE_PREPARE_X = 0x04;
-  static constexpr u8 CHALLENGE_PREPARE_Y = 0x18;
-  static constexpr u8 CHALLENGE_X_READY = 0x0e;
-  static constexpr u8 CHALLENGE_Y_READY = 0x1a;
+  enum class ChallengeState : u8
+  {
+    // Note: This is not a value seen on a real M+.
+    // Used to emulate activation state during which the M+ is not responsive.
+    Activating = 0x00,
+
+    PreparingX = 0x02,
+    ParameterXReady = 0x0e,
+    PreparingY = 0x14,
+    ParameterYReady = 0x1a,
+  };
 
   enum class PassthroughMode : u8
   {
@@ -159,7 +167,8 @@ private:
 
   Register m_reg_data = {};
 
-  u8 m_activation_progress = {};
+  // Used for timing of activation, deactivation, and preparation of challenge values.
+  u8 m_progress_timer = {};
 
   // The port on the end of the motion plus:
   I2CBus m_i2c_bus;
