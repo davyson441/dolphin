@@ -452,9 +452,28 @@ void WritePixelShaderCommonHeader(ShaderCode& out, APIType ApiType, u32 num_texg
 
   if (bounding_box)
   {
-    out.Write("SSBO_BINDING(0) buffer BBox {\n"
-              "\tint bbox_left, bbox_right, bbox_top, bbox_bottom;\n"
-              "};\n");
+    out.Write(R"(
+SSBO_BINDING(0) buffer BBox {
+  int bbox_left, bbox_right, bbox_top, bbox_bottom;
+};
+
+void UpdateBoundingBox(float2 rawpos) {
+  // The pixel center in the GameCube GPU is 7/12, not 0.5 (see VertexShaderGen.cpp)
+  // Adjust for this by unapplying the offset we added in the vertex shader.
+  const float pixel_center_offset = 7.0 / 12.0 - 0.5;
+  // The bounding box register is exclusive of the right coordinate, hence the +1.
+  int2 pos = iround(rawpos.xy * cefbscale.xy + float2(pixel_center_offset, pixel_center_offset));
+  int2 pos_offset = pos + int2(1, 1);
+  if (bbox_left > pos.x)
+    atomicMin(bbox_left, pos.x);
+  if (bbox_right < pos_offset.x)
+    atomicMax(bbox_right, pos_offset.x);
+  if (bbox_top > pos.y)
+    atomicMin(bbox_top, pos.y);
+  if (bbox_bottom < pos_offset.y)
+    atomicMax(bbox_bottom, pos_offset.y);
+}
+)");
   }
 }
 
@@ -817,10 +836,7 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
 
   if (uid_data->bounding_box)
   {
-    out.Write("\tif(bbox_left > int(rawpos.x)) atomicMin(bbox_left, int(rawpos.x));\n"
-              "\tif(bbox_right < int(rawpos.x)) atomicMax(bbox_right, int(rawpos.x));\n"
-              "\tif(bbox_top > int(rawpos.y)) atomicMin(bbox_top, int(rawpos.y));\n"
-              "\tif(bbox_bottom < int(rawpos.y)) atomicMax(bbox_bottom, int(rawpos.y));\n");
+    out.Write("\tUpdateBoundingBox(rawpos.xy);\n");
   }
 
   out.Write("}\n");
