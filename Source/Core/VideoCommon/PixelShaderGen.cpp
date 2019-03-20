@@ -460,9 +460,11 @@ SSBO_BINDING(0) buffer BBox {
 void UpdateBoundingBox(float2 rawpos) {
   // The pixel center in the GameCube GPU is 7/12, not 0.5 (see VertexShaderGen.cpp)
   // Adjust for this by unapplying the offset we added in the vertex shader.
-  const float pixel_center_offset = 7.0 / 12.0 - 0.5;
+  const float PIXEL_CENTER_OFFSET = 7.0 / 12.0 - 0.5;
+  // OpenGL lower-left origin means that Y goes in the opposite direction.
+  float2 offset = float2(PIXEL_CENTER_OFFSET, %sPIXEL_CENTER_OFFSET);
   // The bounding box register is exclusive of the right coordinate, hence the +1.
-  int2 pos = iround(rawpos.xy * cefbscale.xy + float2(pixel_center_offset, pixel_center_offset));
+  int2 pos = iround(rawpos * cefbscale + offset);
   int2 pos_offset = pos + int2(1, 1);
   if (bbox_left > pos.x)
     atomicMin(bbox_left, pos.x);
@@ -473,7 +475,7 @@ void UpdateBoundingBox(float2 rawpos) {
   if (bbox_bottom < pos_offset.y)
     atomicMax(bbox_bottom, pos_offset.y);
 }
-)");
+)", ApiType == APIType::OpenGL ? "" : "-");
   }
 }
 
