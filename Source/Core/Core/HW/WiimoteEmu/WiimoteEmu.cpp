@@ -740,7 +740,6 @@ Common::Vec3 Wiimote::GetAcceleration()
 
   if (IsSideways())
     orientation *= Common::Matrix33::RotateZ(float(MathUtil::TAU / -4));
-
   if (IsUpright())
     orientation *= Common::Matrix33::RotateX(float(MathUtil::TAU / 4));
 
@@ -775,17 +774,16 @@ Common::Vec3 Wiimote::GetAcceleration()
 
 Common::Vec3 Wiimote::GetAngularVelocity()
 {
-  // TODO: make cursor movement produce angular velocity.
-
   auto orientation = Common::Matrix33::Identity();
 
-  // TODO: make a function out of this:
+  // TODO: Make a function out of this:
   if (IsSideways())
     orientation *= Common::Matrix33::RotateZ(float(MathUtil::TAU / -4));
   if (IsUpright())
     orientation *= Common::Matrix33::RotateX(float(MathUtil::TAU / 4));
 
-  return orientation * (m_tilt_state.angular_velocity + m_swing_state.angular_velocity);
+  return orientation * (m_tilt_state.angular_velocity + m_swing_state.angular_velocity +
+                        m_cursor_state.angular_velocity);
 }
 
 Common::Matrix44 Wiimote::GetTransformation() const
