@@ -30,7 +30,7 @@ Force::Force(const std::string& name_) : ReshapableInput(name_, name_, GroupType
 
   // Maximum jerk (m/s^3).
   // i18n: "Jerk" as it relates to physics. The time derivative of acceleration.
-  numeric_settings.emplace_back(std::make_unique<NumericSetting>(_trans("Jerk"), 5.0, 1, 1000));
+  numeric_settings.emplace_back(std::make_unique<NumericSetting>(_trans("Jerk"), 5.0, 1, 5000));
 
   // Angle of twist applied at the extremities of the swing (degrees).
   numeric_settings.emplace_back(std::make_unique<NumericSetting>(_trans("Angle"), 0.45, 0, 180));
