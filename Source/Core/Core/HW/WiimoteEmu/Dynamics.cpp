@@ -160,15 +160,12 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   ApproachPositionWithJerk(state, {-target.x, -target.z, target.y}, swing_group->GetMaxJerk(),
                            time_elapsed);
 
-  // Just jump to our target angle scaled by our progress to the target position.
-  // TODO: If we wanted to be less hacky we could use ApproachAngleWithAccel.
   const auto angle = state->position / swing_group->GetMaxDistance() * swing_group->GetTwistAngle();
 
-  const auto old_angle = state->angle;
-  state->angle = {-angle.z, 0, angle.x};
+  // TODO: expose this setting in UI or calculate something sensible from jerk.
+  constexpr auto MAX_ACCEL = float(MathUtil::TAU * 50);
 
-  // Update velocity based on change in angle.
-  state->angular_velocity = state->angle - old_angle;
+  ApproachAngleWithAccel(state, {-angle.z, 0, angle.x}, MAX_ACCEL, time_elapsed);
 }
 
 WiimoteCommon::DataReportBuilder::AccelData ConvertAccelData(const Common::Vec3& accel, u16 zero_g,
@@ -184,7 +181,7 @@ WiimoteCommon::DataReportBuilder::AccelData ConvertAccelData(const Common::Vec3&
           u16(MathUtil::Clamp(std::lround(scaled_accel.z + zero_g), 0l, MAX_VALUE))};
 }
 
-Common::Matrix44 EmulateCursorMovement(ControllerEmu::Cursor* ir_group)
+void EmulateCursor(MotionState* state, ControllerEmu::Cursor* ir_group, float time_elapsed)
 {
   const auto cursor = ir_group->GetState(true);
 
@@ -193,18 +190,27 @@ Common::Matrix44 EmulateCursorMovement(ControllerEmu::Cursor* ir_group)
 
   // Values are optimized for default settings in "Super Mario Galaxy 2"
   // This seems to be acceptable for a good number of games.
-  constexpr float YAW_ANGLE = 0.1472f;
-  constexpr float PITCH_ANGLE = 0.121f;
+  // constexpr float YAW_ANGLE = 0.1472f;
+  // constexpr float PITCH_ANGLE = 0.121f;
+  constexpr float YAW_ANGLE = 0.3f / 5 * 1.435f * 3;
+  constexpr float PITCH_ANGLE = 0.3f / 5 * 1.34f * 3;
 
   // Nintendo recommends a distance of 1-3 meters.
-  constexpr float NEUTRAL_DISTANCE = 2.f;
-
+  constexpr float NEUTRAL_DISTANCE = 3.f;
   constexpr float MOVE_DISTANCE = 1.f;
 
-  return Matrix44::Translate({0, MOVE_DISTANCE * float(cursor.z), 0}) *
-         Matrix44::FromMatrix33(Matrix33::RotateX(PITCH_ANGLE * cursor.y) *
-                                Matrix33::RotateZ(YAW_ANGLE * cursor.x)) *
-         Matrix44::Translate({0, -NEUTRAL_DISTANCE, 0});
+  // TODO: Move state out of ControllerEmu::Cursor
+  // TODO: Use ApproachPositionWithJerk
+  // TODO: Move forward/backward after rotation.
+  const auto new_position = Common::Vec3{0, NEUTRAL_DISTANCE - MOVE_DISTANCE * float(cursor.z), 0};
+  state->acceleration = new_position - state->position;
+  state->position = new_position;
+
+  // TODO: expose this setting in UI:
+  constexpr auto MAX_ACCEL = float(MathUtil::TAU * 100);
+
+  ApproachAngleWithAccel(state, Common::Vec3(PITCH_ANGLE * -cursor.y, 0, YAW_ANGLE * -cursor.x),
+                         MAX_ACCEL, time_elapsed);
 }
 
 void ApproachAngleWithAccel(RotationalState* state, const Common::Vec3& angle_target,
