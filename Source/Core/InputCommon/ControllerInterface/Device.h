@@ -92,11 +92,7 @@ protected:
   {
   public:
     FullAnalogSurface(Input* low, Input* high) : m_low(*low), m_high(*high) {}
-    ControlState GetState() const override
-    {
-      return (1 + m_high.GetState() - m_low.GetState()) / 2;
-    }
-
+    ControlState GetState() const override;
     std::string GetName() const override { return m_low.GetName() + *m_high.GetName().rbegin(); }
 
   private:

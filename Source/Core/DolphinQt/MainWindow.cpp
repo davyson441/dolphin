@@ -323,7 +323,7 @@ void MainWindow::InitCoreCallbacks()
 
 static void InstallHotkeyFilter(QWidget* dialog)
 {
-  auto* filter = new WindowActivationEventFilter();
+  auto* filter = new WindowActivationEventFilter(dialog);
   dialog->installEventFilter(filter);
 
   filter->connect(filter, &WindowActivationEventFilter::windowDeactivated,
@@ -452,7 +452,7 @@ void MainWindow::ConnectMenuBar()
   connect(m_menu_bar, &MenuBar::ShowList, m_game_list, &GameList::SetListView);
   connect(m_menu_bar, &MenuBar::ShowGrid, m_game_list, &GameList::SetGridView);
   connect(m_menu_bar, &MenuBar::PurgeGameListCache, m_game_list, &GameList::PurgeCache);
-  connect(m_menu_bar, &MenuBar::ToggleSearch, m_search_bar, &SearchBar::Toggle);
+  connect(m_menu_bar, &MenuBar::ShowSearch, m_search_bar, &SearchBar::Show);
 
   connect(m_menu_bar, &MenuBar::ColumnVisibilityToggled, m_game_list,
           &GameList::OnColumnVisibilityToggled);
@@ -776,7 +776,7 @@ bool MainWindow::RequestStop()
     }
   }
 
-  // TODO: Add Movie shutdown
+  OnStopRecording();
   // TODO: Add Debugger shutdown
 
   if (!m_stop_requested && UICommon::TriggerSTMPowerEvent())
@@ -1565,30 +1565,26 @@ void MainWindow::OnStopRecording()
 {
   if (Movie::IsRecordingInput())
     OnExportRecording();
-
-  Movie::EndPlayInput(false);
-  emit RecordingStatusChanged(true);
+  if (Movie::IsMovieActive())
+    Movie::EndPlayInput(false);
+  emit RecordingStatusChanged(false);
 }
 
 void MainWindow::OnExportRecording()
 {
   bool was_paused = Core::GetState() == Core::State::Paused;
 
-  if (was_paused)
+  if (!was_paused)
     Core::SetState(Core::State::Paused);
 
   QString dtm_file = QFileDialog::getSaveFileName(this, tr("Select the Recording File"), QString(),
                                                   tr("Dolphin TAS Movies (*.dtm)"));
 
-  if (was_paused)
+  if (!dtm_file.isEmpty())
+    Movie::SaveRecording(dtm_file.toStdString());
+
+  if (!was_paused)
     Core::SetState(Core::State::Running);
-
-  if (dtm_file.isEmpty())
-    return;
-
-  Core::SetState(Core::State::Running);
-
-  Movie::SaveRecording(dtm_file.toStdString());
 }
 
 void MainWindow::ShowTASInput()

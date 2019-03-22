@@ -40,7 +40,7 @@
 #include "VideoCommon/TextureDecoder.h"
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
-//#include "VideoCommon/OnScreenDisplay.h"
+#include "VideoCommon/OnScreenDisplay.h"
 
 static const u64 TEXHASH_INVALID = 0;
 // Sonic the Fighters (inside Sonic Gems Collection) loops a 64 frames animation
@@ -381,14 +381,15 @@ TextureCacheBase::DoPartialTextureUpdates(TCacheEntry* entry_to_update, u8* pale
         // If the source rectangle is outside of what we actually have in VRAM, skip the copy.
         // The backend doesn't do any clamping, so if we don't, we'd pass out-of-range coordinates
         // to the graphics driver, which can cause GPU resets.
-        /*if (static_cast<u32>(src_x) >= entry->native_width ||
+        if (static_cast<u32>(src_x) >= entry->native_width ||
             static_cast<u32>(src_y) >= entry->native_height ||
             static_cast<u32>(dst_x) >= entry_to_update->native_width ||
             static_cast<u32>(dst_y) >= entry_to_update->native_height)
         {
           OSD::AddTypedMessage(OSD::MessageType::OutOfRangeNotice, "Skip out of range copy0!");
+          ++iter.first;
           continue;
-        }*/
+        }
 
         u32 copy_width =
             std::min(entry->native_width - src_x, entry_to_update->native_width - dst_x);
@@ -1394,14 +1395,14 @@ bool TextureCacheBase::LoadTextureFromOverlappingTextures(TCacheEntry* entry_to_
     // If the source rectangle is outside of what we actually have in VRAM, skip the copy.
     // The backend doesn't do any clamping, so if we don't, we'd pass out-of-range coordinates
     // to the graphics driver, which can cause GPU resets.
-    /*if (static_cast<u32>(src_x) >= entry->native_width ||
+    if (static_cast<u32>(src_x) >= entry->native_width ||
         static_cast<u32>(src_y) >= entry->native_height ||
         static_cast<u32>(dst_x) >= entry_to_update->native_width ||
         static_cast<u32>(dst_y) >= entry_to_update->native_height)
     {
       OSD::AddTypedMessage(OSD::MessageType::OutOfRangeNotice, "Skip out of range copy1!");
       continue;
-    }*/
+    }
 
     u32 copy_width = std::min(entry->native_width - src_x, entry_to_update->native_width - dst_x);
     u32 copy_height =
